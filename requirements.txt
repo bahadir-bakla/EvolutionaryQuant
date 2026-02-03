@@ -1,0 +1,24 @@
+# NQ Quant Trading Bot
+# Dependencies
+
+# Core
+numpy>=1.21.0
+pandas>=1.3.0
+scipy>=1.7.0
+
+# Kalman Filter
+filterpy>=1.4.5
+
+# Data
+openbb>=4.0.0
+yfinance>=0.2.0
+
+# Visualization
+matplotlib>=3.4.0
+seaborn>=0.11.0
+
+# Technical Analysis (backup if OpenBB fails)
+pandas-ta>=0.3.14b
+
+# Testing
+pytest>=7.0.0
