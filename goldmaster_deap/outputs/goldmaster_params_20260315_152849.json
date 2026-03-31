@@ -1,0 +1,16 @@
+{
+  "timestamp": "20260315_152849",
+  "fitness": 4.156274497626103,
+  "params": {
+    "min_taps": 4,
+    "tap_atr_mult": 0.9571441762988024,
+    "momentum_thresh": 0.1251732840552618,
+    "fvg_required": false,
+    "target_atr_mult": 1.8943880709544505,
+    "stop_atr_mult": 0.5,
+    "lot_size": 0.11665194765786469,
+    "position_pct": 0.21587121184205,
+    "growth_factor": 0.1,
+    "htf_window": 98
+  }
+}

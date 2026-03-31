@@ -1,0 +1,34 @@
+{
+  "timestamp": "20260315_165547",
+  "fitness": 3.453407296123774,
+  "best_params": {
+    "gs_lot": 0.01331972936702083,
+    "gs_hard_stop": 843.4458818852157,
+    "gs_target_pts": 149.61530534220407,
+    "gs_stop_pts": 15.475711824560747,
+    "gs_stale_hours": 24.0,
+    "nq_lot": 0.09920575604656225,
+    "nq_tp_pts": 73.0581459196258,
+    "nq_stop_pts": 152.23398502348687,
+    "safe_threshold": 1000.0,
+    "growth_factor": 0.2,
+    "dd_threshold": 0.15,
+    "cooldown_bars": 88,
+    "gs_point_value": 106.75936837055636
+  },
+  "v7_default": {
+    "gs_lot": 0.02,
+    "gs_hard_stop": 500,
+    "gs_target_pts": 140,
+    "gs_stop_pts": 12,
+    "gs_stale_hours": 72,
+    "nq_lot": 0.03,
+    "nq_tp_pts": 40,
+    "nq_stop_pts": 150,
+    "safe_threshold": 3000,
+    "growth_factor": 0.4,
+    "dd_threshold": 0.3,
+    "cooldown_bars": 48,
+    "gs_point_value": 100
+  }
+}

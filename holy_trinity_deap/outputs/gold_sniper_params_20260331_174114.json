@@ -1,0 +1,136 @@
+{
+  "fitness": 9.466422051554845,
+  "best_params": {
+    "gs_target_pts": 92.48411448343126,
+    "gs_stop_pts": 4.360867250790769,
+    "gs_hard_stop": 1404.191352274949,
+    "gs_stale_hours": 12.086585806019485,
+    "gs_point_value": 146.14789289486993,
+    "gs_lot": 0.06933917339166701,
+    "growth_factor": 0.1883450260075759,
+    "min_score_long": 3,
+    "min_score_short": 5
+  },
+  "backtest": {
+    "cagr": 3.0376287323344986,
+    "total_return": 638.681562423196,
+    "max_drawdown": 0.19064506811216247,
+    "win_rate": 0.3905203503348789,
+    "profit_factor": 2.0080041942581515,
+    "avg_rr": 21.20773441719897,
+    "total_trades": 3882,
+    "final_equity": 639681.562423196
+  },
+  "top5": [
+    {
+      "gs_target_pts": 92.48411448343126,
+      "gs_stop_pts": 4.360867250790769,
+      "gs_hard_stop": 1404.191352274949,
+      "gs_stale_hours": 12.086585806019485,
+      "gs_point_value": 146.14789289486993,
+      "gs_lot": 0.06933917339166701,
+      "growth_factor": 0.1883450260075759,
+      "min_score_long": 3,
+      "min_score_short": 5
+    },
+    {
+      "gs_target_pts": 143.31862933563798,
+      "gs_stop_pts": 4.354684438731409,
+      "gs_hard_stop": 1461.3531404692062,
+      "gs_stale_hours": 12.048534917297019,
+      "gs_point_value": 146.23920549310049,
+      "gs_lot": 0.06933969064199573,
+      "growth_factor": 0.1883450259548043,
+      "min_score_long": 3,
+      "min_score_short": 5
+    },
+    {
+      "gs_target_pts": 142.90479681892703,
+      "gs_stop_pts": 4.3561466620667195,
+      "gs_hard_stop": 1455.8506592356996,
+      "gs_stale_hours": 12.109344636517491,
+      "gs_point_value": 146.16342998072426,
+      "gs_lot": 0.06932822090971799,
+      "growth_factor": 0.18834502601682646,
+      "min_score_long": 3,
+      "min_score_short": 5
+    },
+    {
+      "gs_target_pts": 116.25624753544763,
+      "gs_stop_pts": 4.3561466620667195,
+      "gs_hard_stop": 1474.624930405132,
+      "gs_stale_hours": 12.109344636517491,
+      "gs_point_value": 146.16342998072426,
+      "gs_lot": 0.06932822090971799,
+      "growth_factor": 0.18834502601682646,
+      "min_score_long": 3,
+      "min_score_short": 5
+    },
+    {
+      "gs_target_pts": 143.31738470414098,
+      "gs_stop_pts": 4.357386398678517,
+      "gs_hard_stop": 1449.4269608374607,
+      "gs_stale_hours": 12.114867250206089,
+      "gs_point_value": 146.23736789581943,
+      "gs_lot": 0.06933038718510634,
+      "growth_factor": 0.1883450259432627,
+      "min_score_long": 3,
+      "min_score_short": 5
+    },
+    {
+      "gs_target_pts": 143.4158762045217,
+      "gs_stop_pts": 4.358559048409159,
+      "gs_hard_stop": 1305.6486859533486,
+      "gs_stale_hours": 12.124458671516052,
+      "gs_point_value": 146.21147109755813,
+      "gs_lot": 0.06932909991486927,
+      "growth_factor": 0.1883450260341087,
+      "min_score_long": 3,
+      "min_score_short": 5
+    },
+    {
+      "gs_target_pts": 142.99219592729972,
+      "gs_stop_pts": 4.356686106020215,
+      "gs_hard_stop": 1465.576258058172,
+      "gs_stale_hours": 12.098368707350474,
+      "gs_point_value": 146.19352466121114,
+      "gs_lot": 0.06932554017776223,
+      "growth_factor": 0.1883450260262034,
+      "min_score_long": 3,
+      "min_score_short": 5
+    },
+    {
+      "gs_target_pts": 159.7014787301057,
+      "gs_stop_pts": 4.358402895842856,
+      "gs_hard_stop": 1421.3263400062674,
+      "gs_stale_hours": 12.105571352097982,
+      "gs_point_value": 146.22141052979055,
+      "gs_lot": 0.06938816472267943,
+      "growth_factor": 0.18834502593721203,
+      "min_score_long": 3,
+      "min_score_short": 5
+    },
+    {
+      "gs_target_pts": 139.2743873257448,
+      "gs_stop_pts": 4.358346062143437,
+      "gs_hard_stop": 1494.4481343653365,
+      "gs_stale_hours": 12.127821836998052,
+      "gs_point_value": 146.29207176237213,
+      "gs_lot": 0.06938431850816762,
+      "growth_factor": 0.18834502601669478,
+      "min_score_long": 3,
+      "min_score_short": 5
+    },
+    {
+      "gs_target_pts": 146.4193826891138,
+      "gs_stop_pts": 4.362859623789263,
+      "gs_hard_stop": 1341.6604344694508,
+      "gs_stale_hours": 12.090313609661237,
+      "gs_point_value": 146.1290372195669,
+      "gs_lot": 0.06934004045896595,
+      "growth_factor": 0.18834502600901842,
+      "min_score_long": 3,
+      "min_score_short": 5
+    }
+  ]
+}

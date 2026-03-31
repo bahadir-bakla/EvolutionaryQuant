@@ -1,0 +1,54 @@
+{
+  "timestamp": "20260331_133408",
+  "fitness": 8.430520270106932,
+  "best_params": {
+    "ob_lookback": 19,
+    "sweep_margin": 0.4271266172054232,
+    "fvg_min_size": 0.935258196495343,
+    "ema_trend_period": 49,
+    "rsi_period": 15,
+    "rsi_ob_level": 75.31514607431797,
+    "rsi_os_level": 33.995623593718726,
+    "atr_period": 12,
+    "tp_atr_mult": 7.937807928292481,
+    "sl_atr_mult": 0.5,
+    "lot_size": 0.11079255540604284,
+    "growth_factor": 0.10244874104729869,
+    "session_filter": false,
+    "displacement_mult": 1.80619897846717,
+    "ob_body_pct": 0.655891200263744,
+    "meta_bias_threshold": 0.600534999372146
+  },
+  "backtest": {
+    "total_return": 39.40854497799053,
+    "cagr": 1.2304611138386665,
+    "max_drawdown": 0.17538593508963923,
+    "sharpe_ratio": 1.800173998095262,
+    "win_rate": 0.1580547112462006,
+    "profit_factor": 2.800586505988888,
+    "avg_rr": 15.680174478585972,
+    "total_trades": 329,
+    "final_equity": 40408.54497799053
+  },
+  "default_backtest": {
+    "total_return": 3.2352989834992885,
+    "profit_factor": 1.5660690866633986,
+    "win_rate": 0.2777777777777778
+  },
+  "xgb_accuracy": null,
+  "config": {
+    "population_size": 70,
+    "n_generations": 200,
+    "hall_of_fame_size": 20,
+    "crossover_prob": 0.7,
+    "mutation_prob": 0.25,
+    "tournament_size": 5,
+    "initial_capital": 1000.0,
+    "train_pct": 0.7,
+    "n_splits": 5,
+    "stagnation_limit": 25,
+    "n_jobs": 11,
+    "verbose": true,
+    "log_every": 10
+  }
+}

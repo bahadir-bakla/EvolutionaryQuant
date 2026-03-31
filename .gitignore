@@ -37,13 +37,7 @@ mt5_live.log
 *.ex5
 
 # ── Outputs (kişisel sonuçlar — örnek bırakılır) ─────────────
-goldmaster_deap/outputs/*.json
-holy_trinity_deap/outputs/*.json
-liquidity_edge_deap/outputs/*.json
-!goldmaster_deap/outputs/best_params_example.json
-!holy_trinity_deap/outputs/best_params_example.json
-!liquidity_edge_deap/outputs/best_params_example.json
-
+# Removed ignore rules on outputs/*.json to preserve all DEAP results.
 # ── ML model dosyaları ───────────────────────────────────────
 *.joblib
 *.model
