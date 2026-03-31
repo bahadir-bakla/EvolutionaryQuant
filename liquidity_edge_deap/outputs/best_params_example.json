@@ -1,0 +1,38 @@
+{
+  "timestamp": "EXAMPLE_OUTPUT",
+  "note": "Bu dosya örnek çıktıdır. Gerçek optimizasyon sonuçları farklı değerler üretir.",
+  "fitness": 12.84,
+  "best_params": {
+    "ob_lookback": 8,
+    "sweep_margin": 0.62,
+    "fvg_min_size": 0.71,
+    "ema_trend_period": 21,
+    "rsi_period": 14,
+    "rsi_ob_level": 72.0,
+    "rsi_os_level": 28.0,
+    "atr_period": 14,
+    "tp_atr_mult": 4.8,
+    "sl_atr_mult": 1.1,
+    "lot_size": 0.04,
+    "growth_factor": 0.28,
+    "session_filter": true,
+    "displacement_mult": 2.4,
+    "ob_body_pct": 0.72
+  },
+  "backtest": {
+    "total_return": 1.87,
+    "cagr": 0.43,
+    "max_drawdown": 0.18,
+    "sharpe_ratio": 2.14,
+    "win_rate": 0.52,
+    "profit_factor": 2.31,
+    "avg_rr": 3.6,
+    "total_trades": 142,
+    "final_equity": 2870.0
+  },
+  "default_backtest": {
+    "total_return": 0.34,
+    "profit_factor": 1.42,
+    "win_rate": 0.44
+  }
+}

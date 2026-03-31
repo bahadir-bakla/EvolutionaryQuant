@@ -1,0 +1,193 @@
+{
+  "timestamp": "20260331_102003",
+  "fitness": 1.301224131045609,
+  "kelly_garch": false,
+  "best_params": {
+    "roc_fast_period": 5,
+    "roc_mid_period": 18,
+    "roc_slow_period": 25,
+    "ema_fast": 11,
+    "ema_mid": 38,
+    "ema_slow": 86,
+    "adx_period": 16,
+    "adx_threshold": 19.77019312838809,
+    "breakout_period": 38,
+    "tp_atr_mult": 3.172639703083384,
+    "sl_atr_mult": 0.3,
+    "min_score": 3
+  },
+  "top5": [
+    {
+      "roc_fast_period": 5,
+      "roc_mid_period": 18,
+      "roc_slow_period": 25,
+      "ema_fast": 11,
+      "ema_mid": 38,
+      "ema_slow": 86,
+      "adx_period": 16,
+      "adx_threshold": 19.77019312838809,
+      "breakout_period": 38,
+      "tp_atr_mult": 3.172639703083384,
+      "sl_atr_mult": 0.3,
+      "min_score": 3
+    },
+    {
+      "roc_fast_period": 5,
+      "roc_mid_period": 20,
+      "roc_slow_period": 25,
+      "ema_fast": 11,
+      "ema_mid": 38,
+      "ema_slow": 78,
+      "adx_period": 16,
+      "adx_threshold": 19.77019312838809,
+      "breakout_period": 38,
+      "tp_atr_mult": 3.1726397030833837,
+      "sl_atr_mult": 0.3163541586680799,
+      "min_score": 2
+    },
+    {
+      "roc_fast_period": 5,
+      "roc_mid_period": 20,
+      "roc_slow_period": 25,
+      "ema_fast": 11,
+      "ema_mid": 38,
+      "ema_slow": 78,
+      "adx_period": 16,
+      "adx_threshold": 19.77019312838809,
+      "breakout_period": 38,
+      "tp_atr_mult": 3.1726397030833837,
+      "sl_atr_mult": 0.3163541586680799,
+      "min_score": 2
+    },
+    {
+      "roc_fast_period": 5,
+      "roc_mid_period": 20,
+      "roc_slow_period": 25,
+      "ema_fast": 11,
+      "ema_mid": 38,
+      "ema_slow": 78,
+      "adx_period": 16,
+      "adx_threshold": 19.77019312838809,
+      "breakout_period": 38,
+      "tp_atr_mult": 3.1726397030833837,
+      "sl_atr_mult": 0.3163541586680799,
+      "min_score": 2
+    },
+    {
+      "roc_fast_period": 5,
+      "roc_mid_period": 20,
+      "roc_slow_period": 25,
+      "ema_fast": 11,
+      "ema_mid": 38,
+      "ema_slow": 78,
+      "adx_period": 16,
+      "adx_threshold": 19.77019312838809,
+      "breakout_period": 38,
+      "tp_atr_mult": 3.1726397030833837,
+      "sl_atr_mult": 0.3163541586680799,
+      "min_score": 2
+    }
+  ],
+  "stats_tail": [
+    {
+      "gen": 1,
+      "max": 0.7244816313344634,
+      "avg": 0.33954769580322114
+    },
+    {
+      "gen": 2,
+      "max": 1.0458649412594185,
+      "avg": 0.4839243629287893
+    },
+    {
+      "gen": 3,
+      "max": 1.0664373091207797,
+      "avg": 0.7175773850983289
+    },
+    {
+      "gen": 4,
+      "max": 1.2601368706468632,
+      "avg": 0.7840176102853142
+    },
+    {
+      "gen": 5,
+      "max": 1.2601368706468632,
+      "avg": 0.8831286514980384
+    },
+    {
+      "gen": 6,
+      "max": 1.2601368706468632,
+      "avg": 0.9218808454993632
+    },
+    {
+      "gen": 7,
+      "max": 1.2601368706468632,
+      "avg": 1.124892980364073
+    },
+    {
+      "gen": 8,
+      "max": 1.2762977825309287,
+      "avg": 1.1709815918024156
+    },
+    {
+      "gen": 9,
+      "max": 1.2762977825309287,
+      "avg": 1.2100693092652515
+    },
+    {
+      "gen": 10,
+      "max": 1.2762977825309287,
+      "avg": 1.1974769149418443
+    },
+    {
+      "gen": 11,
+      "max": 1.2762977825309287,
+      "avg": 1.227362031964811
+    },
+    {
+      "gen": 12,
+      "max": 1.2762977825309287,
+      "avg": 1.1874581124938794
+    },
+    {
+      "gen": 13,
+      "max": 1.2762977825309287,
+      "avg": 1.0810579674403527
+    },
+    {
+      "gen": 14,
+      "max": 1.2762977825309287,
+      "avg": 1.2188857014252954
+    },
+    {
+      "gen": 15,
+      "max": 1.2762977825309287,
+      "avg": 1.168541310228442
+    },
+    {
+      "gen": 16,
+      "max": 1.2762977825309287,
+      "avg": 1.188835150951532
+    },
+    {
+      "gen": 17,
+      "max": 1.2762977825309287,
+      "avg": 1.1842000251784468
+    },
+    {
+      "gen": 18,
+      "max": 1.2762977825309287,
+      "avg": 1.088682815616203
+    },
+    {
+      "gen": 19,
+      "max": 1.2762977825309287,
+      "avg": 1.1885785288399588
+    },
+    {
+      "gen": 20,
+      "max": 1.301224131045609,
+      "avg": 1.1806716144425122
+    }
+  ]
+}

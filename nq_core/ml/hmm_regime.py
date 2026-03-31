@@ -58,6 +58,11 @@ class HMMRegimeDetector:
         self.is_trained = False
         self.state_mapping = {}  # Maps HMM states to regime names
         
+        # Suppress convergence warnings
+        from warnings import simplefilter
+        simplefilter(action='ignore', category=FutureWarning)
+        simplefilter(action='ignore', category=UserWarning)
+        
     def prepare_features(self, df: pd.DataFrame) -> np.ndarray:
         """
         Prepare observation features for HMM
@@ -83,7 +88,10 @@ class HMMRegimeDetector:
             'returns': returns,
             'volatility': volatility,
             'momentum': momentum
-        }).dropna()
+        })
+        
+        # Handle inf/nan
+        features = features.replace([np.inf, -np.inf], np.nan).dropna()
         
         return features.values
     

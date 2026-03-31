@@ -1,0 +1,17 @@
+{
+  "timestamp": "20260315_012643",
+  "fitness": 170.43677230366202,
+  "params": {
+    "score_threshold": 4.538568119938975,
+    "hurst_window": 119,
+    "chop_period": 29,
+    "ob_lookback": 17,
+    "resistance_lookback": 84,
+    "dca_step_pct": 0.019071604976239262,
+    "target_profit_pct": 0.02085648875608801,
+    "stop_loss_pct": 0.03343851317590369,
+    "position_pct": 0.08963511820154674,
+    "max_layers": 2,
+    "use_session_filter": true
+  }
+}

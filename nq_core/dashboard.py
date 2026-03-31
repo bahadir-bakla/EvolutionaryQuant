@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from nq_core.optimized_strategy import OptimizedStrategy, add_optimized_indicators
 from nq_core.gold_strategy import GoldStrategy, GoldConfig
+from nq_core.backtest import NQBacktestEngine
 import yfinance as yf
 
 st.set_page_config(
@@ -136,68 +137,163 @@ st.sidebar.success("✅ Gold Futures")
 
 
 # === MAIN CONTENT ===
-st.title(f"Live Market Dashboard ({interval})")
+# === CONTENT TABS ===
+tab1, tab2 = st.tabs(["Live Market", "Backtest"])
 
-col1, col2 = st.columns(2)
-
-# === NQ Futures ===
-with col1:
-    st.markdown("## 🖥️ Nasdaq (NQ=F)")
-    strategy_nq = OptimizedStrategy()
-    df_nq, signal_nq = process_market("NQ=F", strategy_nq, interval)
+# === TAB 1: LIVE MARKET ===
+with tab1:
+    st.title(f"Live Market Dashboard ({interval})")
     
-    if signal_nq:
-        # Signal Box
-        sig_color = "signal-long" if signal_nq.direction == 'LONG' else "signal-short" if signal_nq.direction == 'SHORT' else "signal-neutral"
-        st.markdown(f"""
-        <div class="big-signal {sig_color}">
-            {signal_nq.direction} ({signal_nq.confidence*100:.0f}%)
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Metrics
-        m1, m2, m3 = st.columns(3)
-        m1.metric("Entry", f"{signal_nq.entry:.2f}")
-        m2.metric("Stop", f"{signal_nq.stop_loss:.2f}", delta=f"-{abs(signal_nq.entry-signal_nq.stop_loss):.2f}" if signal_nq.direction=='LONG' else f"+{abs(signal_nq.entry-signal_nq.stop_loss):.2f}")
-        m3.metric("TP1", f"{signal_nq.take_profit_1:.2f}", delta=f"+{abs(signal_nq.take_profit_1-signal_nq.entry):.2f}" if signal_nq.direction=='LONG' else f"-{abs(signal_nq.take_profit_1-signal_nq.entry):.2f}")
-        
-        # Factors
-        st.caption("Confluence Factors:")
-        for factor, desc in signal_nq.factors.items():
-            st.code(f"{factor.upper()}: {desc}")
-            
-        # Chart
-        draw_chart(df_nq, signal_nq, "NQ=F")
-
-
-# === Gold Futures ===
-with col2:
-    st.markdown("## 🥇 Gold (GC=F)")
-    strategy_gold = GoldStrategy(GoldConfig())
-    df_gold, signal_gold = process_market("GC=F", strategy_gold, interval)
+    col1, col2 = st.columns(2)
     
-    if signal_gold:
-        # Signal Box
-        sig_color = "signal-long" if signal_gold.direction == 'LONG' else "signal-short" if signal_gold.direction == 'SHORT' else "signal-neutral"
-        st.markdown(f"""
-        <div class="big-signal {sig_color}">
-            {signal_gold.direction} ({signal_gold.confidence*100:.0f}%)
-        </div>
-        """, unsafe_allow_html=True)
+    # === NQ Futures ===
+    with col1:
+        st.markdown("## 🖥️ Nasdaq (NQ=F)")
+        strategy_nq = OptimizedStrategy()
+        df_nq, signal_nq = process_market("NQ=F", strategy_nq, interval)
         
-        # Metrics
-        m1, m2, m3 = st.columns(3)
-        m1.metric("Entry", f"{signal_gold.entry:.1f}")
-        m2.metric("Stop", f"{signal_gold.stop_loss:.1f}", delta=f"-{abs(signal_gold.entry-signal_gold.stop_loss):.1f}" if signal_gold.direction=='LONG' else f"+{abs(signal_gold.entry-signal_gold.stop_loss):.1f}")
-        m3.metric("TP1", f"{signal_gold.take_profit_1:.1f}", delta=f"+{abs(signal_gold.take_profit_1-signal_gold.entry):.1f}" if signal_gold.direction=='LONG' else f"-{abs(signal_gold.take_profit_1-signal_gold.entry):.1f}")
-        
-        # Factors
-        st.caption("Confluence Factors:")
-        for factor, desc in signal_gold.factors.items():
-            st.code(f"{factor.upper()}: {desc}")
+        if signal_nq:
+            # Signal Box
+            sig_color = "signal-long" if signal_nq.direction == 'LONG' else "signal-short" if signal_nq.direction == 'SHORT' else "signal-neutral"
+            st.markdown(f"""
+            <div class="big-signal {sig_color}">
+                {signal_nq.direction} ({signal_nq.confidence*100:.0f}%)
+            </div>
+            """, unsafe_allow_html=True)
             
-        # Chart
-        draw_chart(df_gold, signal_gold, "GC=F")
+            # Metrics
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Entry", f"{signal_nq.entry:.2f}")
+            m2.metric("Stop", f"{signal_nq.stop_loss:.2f}", delta=f"-{abs(signal_nq.entry-signal_nq.stop_loss):.2f}" if signal_nq.direction=='LONG' else f"+{abs(signal_nq.entry-signal_nq.stop_loss):.2f}")
+            m3.metric("TP1", f"{signal_nq.take_profit_1:.2f}", delta=f"+{abs(signal_nq.take_profit_1-signal_nq.entry):.2f}" if signal_nq.direction=='LONG' else f"-{abs(signal_nq.take_profit_1-signal_nq.entry):.2f}")
+            
+            # Factors
+            st.caption("Confluence Factors:")
+            for factor, desc in signal_nq.factors.items():
+                st.code(f"{factor.upper()}: {desc}")
+                
+            # Chart
+            draw_chart(df_nq, signal_nq, "NQ=F")
+
+    # === Gold Futures ===
+    with col2:
+        st.markdown("## 🥇 Gold (GC=F)")
+        strategy_gold = GoldStrategy(GoldConfig())
+        df_gold, signal_gold = process_market("GC=F", strategy_gold, interval)
+        
+        if signal_gold:
+            # Signal Box
+            sig_color = "signal-long" if signal_gold.direction == 'LONG' else "signal-short" if signal_gold.direction == 'SHORT' else "signal-neutral"
+            st.markdown(f"""
+            <div class="big-signal {sig_color}">
+                {signal_gold.direction} ({signal_gold.confidence*100:.0f}%)
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Metrics
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Entry", f"{signal_gold.entry:.1f}")
+            m2.metric("Stop", f"{signal_gold.stop_loss:.1f}", delta=f"-{abs(signal_gold.entry-signal_gold.stop_loss):.1f}" if signal_gold.direction=='LONG' else f"+{abs(signal_gold.entry-signal_gold.stop_loss):.1f}")
+            m3.metric("TP1", f"{signal_gold.take_profit_1:.1f}", delta=f"+{abs(signal_gold.take_profit_1-signal_gold.entry):.1f}" if signal_gold.direction=='LONG' else f"-{abs(signal_gold.take_profit_1-signal_gold.entry):.1f}")
+            
+            # Factors
+            st.caption("Confluence Factors:")
+            for factor, desc in signal_gold.factors.items():
+                st.code(f"{factor.upper()}: {desc}")
+                
+            # Chart
+            draw_chart(df_gold, signal_gold, "GC=F")
+
+# === TAB 2: BACKTEST ===
+with tab2:
+    st.title("Strategy Backtester")
+    st.markdown("Run historical simulations with the optimized strategy.")
+    
+    # Configuration
+    c1, c2, c3, c4 = st.columns(4)
+    bt_symbol = c1.text_input("Symbol", "NQ=F")
+    bt_period = c2.selectbox("Period", ["5d", "1mo", "3mo", "6mo", "1y"], index=3)
+    bt_interval = c3.selectbox("Interval", ["5m", "15m", "1h", "1d"], index=2)
+    bt_capital = c4.number_input("Capital", value=100000, step=10000)
+    
+    if st.button("Run Simulation", type="primary"):
+        with st.spinner("Fetching data and running simulation..."):
+            try:
+                # 1. Fetch Data
+                ticker = yf.Ticker(bt_symbol)
+                df = ticker.history(period=bt_period, interval=bt_interval)
+                df.columns = df.columns.str.lower()
+                
+                if len(df) < 50:
+                    st.error("Not enough data to run backtest.")
+                else:
+                    # 2. Add Indicators
+                    df = add_optimized_indicators(df)
+                    
+                    # 3. Generate Signals
+                    strategy = OptimizedStrategy()
+                    signals = []
+                    
+                    progress_bar = st.progress(0)
+                    for i in range(len(df)):
+                        if i < 50:
+                            signals.append({'signal': 'NEUTRAL'})
+                            continue
+                        
+                        # Process batch every 50 bars to update progress
+                        if i % 50 == 0:
+                            progress_bar.progress(i / len(df))
+                            
+                        sig = strategy.evaluate(df, i)
+                        signals.append({
+                            'signal': sig.direction,
+                            'stop_loss': sig.stop_loss,
+                            'tp1': sig.take_profit_1,
+                            'atr': df.iloc[i].get('atr', 0)
+                        })
+                    
+                    progress_bar.progress(100)
+                    signals_df = pd.DataFrame(signals, index=df.index)
+                    
+                    # 4. Run Backtest Engine
+                    engine = NQBacktestEngine(initial_capital=bt_capital, use_kelly=True)
+                    result = engine.run(df, signals_df)
+                    
+                    # 5. Display Results
+                    st.success("Simulation Complete!")
+                    
+                    # Metrics Row
+                    m1, m2, m3, m4 = st.columns(4)
+                    m1.metric("Total Return", f"{result.total_return:.2%}", 
+                              delta=f"${result.final_capital - result.initial_capital:,.2f}")
+                    m2.metric("Sharpe Ratio", f"{result.sharpe_ratio:.2f}")
+                    m3.metric("Win Rate", f"{result.win_rate:.1%}")
+                    m4.metric("Max Drawdown", f"{result.max_drawdown:.2%}")
+                    
+                    # Equity Curve
+                    st.subheader("Equity Curve")
+                    st.line_chart(result.equity_curve['equity'])
+                    
+                    # Trade List
+                    with st.expander("Trade History"):
+                        if result.trades:
+                            trades_data = []
+                            for t in result.trades:
+                                trades_data.append({
+                                    'Entry Time': t.entry_time,
+                                    'Direction': t.direction.value,
+                                    'Entry Price': t.entry_price,
+                                    'Exit Price': t.exit_price,
+                                    'PnL': t.pnl,
+                                    'Return %': t.pnl_percent * 100,
+                                    'Status': t.status
+                                })
+                            st.dataframe(pd.DataFrame(trades_data))
+                        else:
+                            st.info("No trades executed.")
+                        
+            except Exception as e:
+                st.error(f"Simulation failed: {str(e)}")
 
 st.markdown("---")
 st.caption("Last updated: " + time.strftime("%H:%M:%S"))

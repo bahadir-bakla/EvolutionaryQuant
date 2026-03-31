@@ -1,0 +1,87 @@
+# ============================================================
+# XAU/USD DEAP Optimizer — .gitignore
+# ============================================================
+
+# ── Büyük veri dosyaları (GitHub 100MB limiti) ──────────────
+*.csv
+!examples/*.csv          # Örnek küçük CSV'lere izin ver
+!DAT_MT_*_2019.csv
+!DAT_MT_*_2020.csv
+!DAT_MT_*_2021.csv
+!DAT_MT_*_2022.csv
+!DAT_MT_*_2023.csv
+!DAT_MT_*_2024.csv
+!XAG_DATA/*.csv
+*.pkl
+*.pickle
+*.feather
+*.parquet
+# ── Cache & Build ────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.spec
+cachedir/
+
+# ── MT5 & Log ────────────────────────────────────────────────
+*.log
+mt5_live.log
+*.mq4
+*.mq5
+*.ex4
+*.ex5
+
+# ── Outputs (kişisel sonuçlar — örnek bırakılır) ─────────────
+goldmaster_deap/outputs/*.json
+holy_trinity_deap/outputs/*.json
+liquidity_edge_deap/outputs/*.json
+!goldmaster_deap/outputs/best_params_example.json
+!holy_trinity_deap/outputs/best_params_example.json
+!liquidity_edge_deap/outputs/best_params_example.json
+
+# ── ML model dosyaları ───────────────────────────────────────
+*.joblib
+*.model
+*.h5
+models/
+
+# ── IDE & OS ─────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Ortam ────────────────────────────────────────────────────
+venv/
+.env
+.env.*
+*.env
+
+# ── Jupyter ─────────────────────────────────────────────────
+.ipynb_checkpoints/
+
+# ── Büyük HTML rapor dosyaları ───────────────────────────────
+ReportHistory*.html
+
+# ── Hariç tutulan CSV ve pickle cache'ler ───────────────────
+cache_gold_*.pkl
+cache_nq_*.pkl
+cache_qqq_*.pkl
+cache_si_*.pkl
+enhanced_*.csv
+equity_curve*.csv
+as_simulation_dump.csv
+trade_history.csv
+nq_results.csv
+optimization_results.csv
+deap_10x_log.txt
+deap_10x_results.json
+final_portfolio_params.json

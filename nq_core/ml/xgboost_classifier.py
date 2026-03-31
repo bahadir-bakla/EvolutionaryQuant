@@ -225,8 +225,9 @@ class SignalClassifier:
         features = self.create_features(df)
         labels = self.create_labels(df, forward_periods, threshold)
         
-        # Align and drop NaN
-        data = pd.concat([features, labels.rename('label')], axis=1).dropna()
+        # Align and drop NaN/Inf
+        data = pd.concat([features, labels.rename('label')], axis=1)
+        data = data.replace([np.inf, -np.inf], np.nan).dropna()
         
         X = data[self.feature_names]
         y = data['label']

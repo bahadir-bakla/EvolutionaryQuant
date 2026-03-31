@@ -50,7 +50,7 @@ def add_optimized_indicators(df: pd.DataFrame) -> pd.DataFrame:
     df['tp_vol'] = tp * volume
     df['vwap'] = df['tp_vol'].cumsum() / volume.cumsum()
     df['vwap_dist'] = (close - df['vwap']) / close * 100
-    df = df.drop(columns=['tp_vol'])
+    # df = df.drop(columns=['tp_vol']) # Keep for POC calculation later
     
     # 2. Volatility (12.59%)
     df['volatility'] = close.pct_change().rolling(10).std() * 100
@@ -99,6 +99,30 @@ def add_optimized_indicators(df: pd.DataFrame) -> pd.DataFrame:
     
     # 9. Higher Highs (still useful per correlation)
     df['hh'] = (high > high.rolling(5).max().shift(1)).astype(int)
+    
+    # 10. Stochastic Oscillator (New)
+    # K = 100 * ((C - L14) / (H14 - L14))
+    low_14 = low.rolling(14).min()
+    high_14 = high.rolling(14).max()
+    df['stoch_k'] = 100 * ((close - low_14) / (high_14 - low_14))
+    df['stoch_d'] = df['stoch_k'].rolling(3).mean()
+    
+    # 11. Point of Control (POC) - Volume Profile Approximation (New)
+    # We estimate POC as the price level with max volume in the last 50 bars
+    # This is a simplification but effective for support/resistance
+    # We use a rolling window to find the bar with max volume, and take its typical price
+    # A true VP requires tick data binning, this is a bar-wise approximation
+    roll_vol = volume.rolling(50)
+    # Find index of max volume in window... tricky in pandas rolling
+    # Alternative: Use VWAP of the 4-hour block as "Fair Value"
+    # Or simply: Rolling VWAP over 50 bars
+    df['rolling_vwap'] = (df['tp_vol'].rolling(50).sum() / volume.rolling(50).sum())
+    # Identify high volume nodes:
+    # If volume is > 2x average, that bar's close is a "High Volume Node"
+    df['is_hvn'] = np.where(volume > volume.rolling(50).mean() * 2.0, 1, 0)
+    # Propagate last HVN price
+    df['hvn_price'] = np.where(df['is_hvn']==1, close, np.nan)
+    df['poc_level'] = df['hvn_price'].ffill() # Last high volume price level
     
     return df
 
