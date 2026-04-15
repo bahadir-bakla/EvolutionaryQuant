@@ -88,15 +88,17 @@ def _prepare_dataset(
     tp_pts: float = TB_TP_PTS,
     sl_pts: float = TB_SL_PTS,
     max_bars: int = TB_MAXBARS,
+    side: str = 'long',
 ) -> tuple[pd.DataFrame, pd.Series]:
     """Build feature matrix X and binary label y (1 = win, 0 = loss/timeout)."""
-    print("  Building features...", end=' ', flush=True)
+    print(f"  Building features ({side})...", end=' ', flush=True)
     X = build_features(m1)
     print(f"shape={X.shape}")
 
     print("  Computing triple-barrier labels...", end=' ', flush=True)
     raw_labels = triple_barrier_labels(
-        m1, tp_pts=tp_pts, sl_pts=sl_pts, max_bars=max_bars, spread_pts=SPREAD_PTS
+        m1, tp_pts=tp_pts, sl_pts=sl_pts, max_bars=max_bars,
+        spread_pts=SPREAD_PTS, side=side
     )
     stats = barrier_label_stats(raw_labels)
     print(
@@ -144,20 +146,20 @@ def walk_forward_train(
     m1_oos: pd.DataFrame | None = None,
     save_model: bool = True,
     model_name: str = 'lgbm_gold',
+    side: str = 'long',
 ) -> dict:
     """
-    Train LightGBM with walk-forward CV on training data,
-    then evaluate on optional OOS (2023-2024).
-
+    Train LightGBM with walk-forward CV on training data.
+    side: 'long' or 'short'
     Returns dict with metrics and trained model.
     """
     print("\n" + "=" * 60)
-    print("  ML Engine — Walk-Forward Training")
+    print(f"  ML Engine — Walk-Forward Training  [{side.upper()}]")
     print("=" * 60)
 
     # -- Prepare full training dataset ---------------------------------
     print("\n[1] Preparing training dataset...")
-    X_all, y_all = _prepare_dataset(m1_train)
+    X_all, y_all = _prepare_dataset(m1_train, side=side)
 
     # -- Walk-forward CV ------------------------------------------------
     print("\n[2] Walk-forward cross-validation...")
@@ -255,7 +257,7 @@ def walk_forward_train(
         model_path = MODELS_DIR / f'{model_name}.pkl'
         with open(model_path, 'wb') as f:
             pickle.dump({'model': final_model, 'features': list(X_all.columns),
-                         'threshold': SIGNAL_THRESHOLD}, f)
+                         'threshold': SIGNAL_THRESHOLD, 'side': side}, f)
         print(f"\n  Model saved -> {model_path}")
 
     return {
@@ -275,3 +277,19 @@ def load_model(model_name: str = 'lgbm_gold') -> dict:
     model_path = MODELS_DIR / f'{model_name}.pkl'
     with open(model_path, 'rb') as f:
         return pickle.load(f)
+
+
+def train_both_sides(m1_train: pd.DataFrame, save: bool = True) -> tuple[dict, dict]:
+    """
+    Train LONG and SHORT models sequentially.
+    Returns (long_bundle, short_bundle).
+    """
+    long_bundle  = walk_forward_train(m1_train, save_model=save,
+                                       model_name='lgbm_gold_long',  side='long')
+    short_bundle = walk_forward_train(m1_train, save_model=save,
+                                       model_name='lgbm_gold_short', side='short')
+    return long_bundle, short_bundle
+
+
+def load_both_models() -> tuple[dict, dict]:
+    return load_model('lgbm_gold_long'), load_model('lgbm_gold_short')
