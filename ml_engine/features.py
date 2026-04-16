@@ -170,6 +170,102 @@ def _build_tf_features(df: pd.DataFrame, prefix: str) -> pd.DataFrame:
 
 
 # -----------------------------------------------------------------------------
+# ICT PRICE ACTION FEATURES (M1 level)
+# -----------------------------------------------------------------------------
+
+def _ict_features(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    ICT-inspired price action features computed on M1 bars.
+    - Liquidity sweep: wick past N-bar high/low then close back inside
+    - Market Structure Break (MSB/BOS): close above prior swing high / below prior swing low
+    - Equal highs/lows: price within 0.1 pts of recent high/low (liquidity pool)
+    - Premium/Discount: position within recent N-bar range (0=bottom, 1=top)
+    - Rejection wick: large wick relative to body (pin bar)
+    """
+    o, h, l, c = df['open'], df['high'], df['low'], df['close']
+    feat: dict[str, pd.Series] = {}
+
+    # Rolling N-bar high/low
+    for n in [20, 50]:
+        roll_h = h.rolling(n).max().shift(1)   # prior N bars high (not incl. current)
+        roll_l = l.rolling(n).min().shift(1)
+
+        # Liquidity sweep bull: wick below roll_l but close above roll_l
+        liq_bull = (l < roll_l) & (c > roll_l)
+        feat[f'liq_sweep_bull_{n}'] = liq_bull.astype(float)
+
+        # Liquidity sweep bear: wick above roll_h but close below roll_h
+        liq_bear = (h > roll_h) & (c < roll_h)
+        feat[f'liq_sweep_bear_{n}'] = liq_bear.astype(float)
+
+        # MSB bull: close above prior N-bar high
+        feat[f'msb_bull_{n}'] = (c > roll_h).astype(float)
+        # MSB bear: close below prior N-bar low
+        feat[f'msb_bear_{n}'] = (c < roll_l).astype(float)
+
+        # Premium/Discount (0=discount zone, 1=premium zone)
+        rng = (roll_h - roll_l).replace(0, np.nan)
+        feat[f'prem_disc_{n}'] = (c - roll_l) / rng
+
+    # Rejection wick ratio (pin bar detector)
+    body      = (c - o).abs()
+    full_rng  = (h - l).replace(0, np.nan)
+    upper_w   = h - pd.concat([o, c], axis=1).max(axis=1)
+    lower_w   = pd.concat([o, c], axis=1).min(axis=1) - l
+    feat['bull_pin'] = ((lower_w / full_rng) > 0.6) & (c > o)
+    feat['bear_pin'] = ((upper_w / full_rng) > 0.6) & (c < o)
+    feat['bull_pin'] = feat['bull_pin'].astype(float)
+    feat['bear_pin'] = feat['bear_pin'].astype(float)
+
+    # Inside bar (consolidation)
+    feat['inside_bar'] = ((h < h.shift(1)) & (l > l.shift(1))).astype(float)
+
+    # Breakout bar: range > 2x rolling avg range
+    avg_rng = full_rng.rolling(20).mean()
+    feat['breakout_bar'] = (full_rng > 2.0 * avg_rng).astype(float)
+
+    # Equal highs/lows (within 0.2 pts — liquidity pool)
+    feat['eq_highs'] = ((h - h.shift(1)).abs() < 0.2).astype(float)
+    feat['eq_lows']  = ((l - l.shift(1)).abs() < 0.2).astype(float)
+
+    return pd.DataFrame(feat, index=df.index)
+
+
+# -----------------------------------------------------------------------------
+# HIGHER TIMEFRAME BIAS (H1)
+# -----------------------------------------------------------------------------
+
+def _h1_features(m1: pd.DataFrame) -> pd.DataFrame:
+    """H1 trend bias aligned back to M1."""
+    agg = {'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last', 'volume': 'sum'}
+    h1 = m1.resample('1h').agg(agg).dropna(subset=['open'])
+
+    o, h, l, c = h1['open'], h1['high'], h1['low'], h1['close']
+    feat: dict[str, pd.Series] = {}
+
+    # Trend
+    ema9  = c.ewm(span=9).mean()
+    ema21 = c.ewm(span=21).mean()
+    feat['H1_bull_trend']  = (ema9 > ema21).astype(float)
+    feat['H1_close_ema9']  = (c - ema9) / c.replace(0, np.nan)
+    feat['H1_close_ema21'] = (c - ema21) / c.replace(0, np.nan)
+    feat['H1_rsi14']       = _rsi(c, 14)
+
+    atr = _atr(h, l, c, 14)
+    feat['H1_atr']         = atr
+    feat['H1_atr_norm']    = atr / c.replace(0, np.nan)
+
+    # Candle bias
+    feat['H1_bull_bar']    = (c > o).astype(float)
+    body = (c - o).abs()
+    rng  = (h - l).replace(0, np.nan)
+    feat['H1_body_ratio']  = body / rng
+
+    df_h1 = pd.DataFrame(feat, index=h1.index)
+    return df_h1.reindex(m1.index, method='ffill')
+
+
+# -----------------------------------------------------------------------------
 # SESSION TIME FEATURES
 # -----------------------------------------------------------------------------
 
@@ -236,9 +332,15 @@ def build_features(m1: pd.DataFrame) -> pd.DataFrame:
     f_m5_aligned  = f_m5.reindex(m1.index, method='ffill')
     f_m15_aligned = f_m15.reindex(m1.index, method='ffill')
 
+    # -- ICT price action features (M1) ---------------------------------
+    f_ict = _ict_features(m1)
+
+    # -- H1 trend bias ---------------------------------------------------
+    f_h1 = _h1_features(m1)
+
     # -- Session features ------------------------------------------------
     f_sess = _session_features(m1.index)
 
     # -- Combine ---------------------------------------------------------
-    combined = pd.concat([f_m1, f_m5_aligned, f_m15_aligned, f_sess], axis=1)
+    combined = pd.concat([f_m1, f_m5_aligned, f_m15_aligned, f_ict, f_h1, f_sess], axis=1)
     return combined

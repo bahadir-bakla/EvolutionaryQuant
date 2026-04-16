@@ -34,10 +34,12 @@ def main():
     parser.add_argument('--max_bars',   type=int,   default=120,  help='Max hold bars')
     parser.add_argument('--threshold',  type=float, default=0.70, help='Signal threshold')
     parser.add_argument('--lot',        type=float, default=0.01, help='Lot size')
-    parser.add_argument('--no_session', action='store_true',       help='Disable session filter')
-    parser.add_argument('--skip_train', action='store_true',       help='Load saved models')
-    parser.add_argument('--long_only',  action='store_true',       help='Long only mode')
-    parser.add_argument('--short_only', action='store_true',       help='Short only mode')
+    parser.add_argument('--no_session', action='store_true',            help='Disable session filter')
+    parser.add_argument('--skip_train', action='store_true',            help='Load saved models')
+    parser.add_argument('--long_only',  action='store_true',            help='Long only mode')
+    parser.add_argument('--short_only', action='store_true',            help='Short only mode')
+    parser.add_argument('--oos_years',  type=int, nargs='+', default=None, help='OOS years e.g. --oos_years 2025')
+    parser.add_argument('--train_years',type=int, nargs='+', default=None, help='Train years override')
     args = parser.parse_args()
 
     print("=" * 60)
@@ -51,11 +53,14 @@ def main():
     print(f"  Mode: {mode}")
 
     # -- Load data --------------------------------------------------------
+    train_years = args.train_years or list(range(2011, 2023))
+    oos_years   = args.oos_years   or [2023, 2024]
     print("\n[DATA] Loading Gold M1...")
-    m1_train = load_gold_years(years=list(range(2011, 2023)))
-    m1_oos   = load_gold_years(years=[2023, 2024])
+    m1_train = load_gold_years(years=train_years)
+    m1_oos   = load_gold_years(years=oos_years)
     print(f"  Train: {len(m1_train):,} bars  [{m1_train.index[0].date()} -> {m1_train.index[-1].date()}]")
     print(f"  OOS:   {len(m1_oos):,} bars   [{m1_oos.index[0].date()} -> {m1_oos.index[-1].date()}]")
+    label = f"OOS {oos_years[0]}" + (f"-{oos_years[-1]}" if len(oos_years) > 1 else "")
 
     # -- Train ------------------------------------------------------------
     if args.skip_train:
@@ -102,7 +107,7 @@ def main():
 
     # -- Final Report -----------------------------------------------------
     print("\n" + "=" * 60)
-    print("  FINAL REPORT — OOS 2023-2024")
+    print(f"  FINAL REPORT — {label}")
     print("=" * 60)
     print(f"  Trades         : {m['total_trades']}")
     print(f"  Win Rate       : {m['win_rate']:.1%}")
