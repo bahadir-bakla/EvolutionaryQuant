@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EvolutionaryQuant — ML Scalper</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:        #0a0e1a;
+    --surface:   #111827;
+    --surface2:  #1a2235;
+    --border:    #1e2d45;
+    --accent:    #00d4ff;
+    --green:     #00e676;
+    --red:       #ff4444;
+    --yellow:    #ffd600;
+    --text:      #e2e8f0;
+    --muted:     #64748b;
+    --font:      'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 13px;
+    min-height: 100vh;
+  }
+
+  /* ── Top Bar ── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar-left { display: flex; align-items: center; gap: 16px; }
+  .logo { font-size: 16px; font-weight: 700; color: var(--accent); letter-spacing: 1px; }
+  .symbol-badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: var(--yellow);
+    letter-spacing: 1px;
+  }
+  .mode-badge {
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .mode-live   { background: rgba(0,230,118,0.15); color: var(--green); border: 1px solid var(--green); }
+  .mode-paper  { background: rgba(255,214,0,0.15);  color: var(--yellow); border: 1px solid var(--yellow); }
+  .mode-offline{ background: rgba(100,116,139,0.2); color: var(--muted);  border: 1px solid var(--muted); }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 2s infinite;
+  }
+  .status-dot.offline { background: var(--muted); box-shadow: none; animation: none; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.4; }
+  }
+  .updated-at { color: var(--muted); font-size: 11px; }
+
+  /* ── Layout ── */
+  .container { padding: 20px 24px; max-width: 1600px; margin: 0 auto; }
+
+  /* ── Stat Cards ── */
+  .cards { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 20px; }
+  @media (max-width: 1200px) { .cards { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 600px)  { .cards { grid-template-columns: repeat(2, 1fr); } }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+  }
+  .card.green::before { background: var(--green); }
+  .card.red::before   { background: var(--red); }
+  .card.yellow::before{ background: var(--yellow); }
+
+  .card-label { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .card-value { font-size: 22px; font-weight: 700; color: var(--text); }
+  .card-value.positive { color: var(--green); }
+  .card-value.negative { color: var(--red); }
+  .card-sub   { font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+  /* ── Charts Row ── */
+  .charts-row { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 20px; }
+  @media (max-width: 900px) { .charts-row { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .panel-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .panel-title span { color: var(--accent); }
+
+  /* ── Open Position ── */
+  .position-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 16px;
+  }
+  .position-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .dir-badge {
+    font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 4px;
+    letter-spacing: 1px;
+  }
+  .dir-long  { background: rgba(0,230,118,0.2); color: var(--green); border: 1px solid var(--green); }
+  .dir-short { background: rgba(255,68,68,0.2);  color: var(--red);   border: 1px solid var(--red); }
+  .dir-none  { background: rgba(100,116,139,0.2); color: var(--muted); border: 1px solid var(--muted); }
+
+  .pos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .pos-item label { color: var(--muted); font-size: 10px; display: block; }
+  .pos-item span  { font-size: 13px; }
+
+  /* ── Bottom Row ── */
+  .bottom-row { display: grid; grid-template-columns: 3fr 1fr; gap: 16px; }
+  @media (max-width: 1100px) { .bottom-row { grid-template-columns: 1fr; } }
+
+  /* ── Trades Table ── */
+  .table-wrap { overflow-x: auto; max-height: 320px; overflow-y: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    position: sticky; top: 0;
+    background: var(--surface2);
+    color: var(--muted);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 8px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody tr { border-bottom: 1px solid rgba(30,45,69,0.5); transition: background 0.15s; }
+  tbody tr:hover { background: var(--surface2); }
+  tbody td { padding: 7px 10px; font-size: 12px; }
+  .pnl-pos { color: var(--green); }
+  .pnl-neg { color: var(--red); }
+  .reason-tp   { color: var(--green); font-size: 10px; }
+  .reason-sl   { color: var(--red);   font-size: 10px; }
+  .reason-time { color: var(--yellow);font-size: 10px; }
+  .reason-other{ color: var(--muted); font-size: 10px; }
+
+  /* ── News Feed ── */
+  .news-feed { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; }
+  .news-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 8px 10px;
+  }
+  .news-item.bullish { border-left-color: var(--green); }
+  .news-item.bearish { border-left-color: var(--red); }
+  .news-title { font-size: 11px; color: var(--text); margin-bottom: 3px; }
+  .news-meta  { font-size: 10px; color: var(--muted); }
+
+  /* ── Direction Bars ── */
+  .dir-bars { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+  .dir-bar-row { display: flex; align-items: center; gap: 10px; }
+  .dir-bar-label { width: 45px; font-size: 11px; color: var(--muted); }
+  .dir-bar-track { flex: 1; height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+  .dir-bar-fill  { height: 100%; border-radius: 4px; transition: width 0.5s; }
+  .dir-bar-fill.long  { background: var(--green); }
+  .dir-bar-fill.short { background: var(--red); }
+  .dir-bar-val { width: 60px; font-size: 11px; text-align: right; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo">EVOLUTIONARYQUANT</div>
+    <div class="symbol-badge" id="symbolBadge">XAUUSD</div>
+    <div class="mode-badge mode-offline" id="modeBadge">OFFLINE</div>
+    <div class="status-dot offline" id="statusDot"></div>
+  </div>
+  <div class="updated-at" id="updatedAt">—</div>
+</div>
+
+<div class="container">
+
+  <!-- STAT CARDS -->
+  <div class="cards">
+    <div class="card">
+      <div class="card-label">Equity</div>
+      <div class="card-value" id="cardEquity">$0</div>
+      <div class="card-sub" id="cardEquitySub">başlangıç: $1,000</div>
+    </div>
+    <div class="card green">
+      <div class="card-label">Toplam P&L</div>
+      <div class="card-value" id="cardPnl">$0</div>
+      <div class="card-sub" id="cardPnlSub">0 trade</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Win Rate</div>
+      <div class="card-value" id="cardWR">0%</div>
+      <div class="card-sub" id="cardWRSub">0W / 0L</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Profit Factor</div>
+      <div class="card-value" id="cardPF">0.00</div>
+      <div class="card-sub">gross profit / loss</div>
+    </div>
+    <div class="card yellow">
+      <div class="card-label">Bugünkü P&L</div>
+      <div class="card-value" id="cardToday">$0</div>
+      <div class="card-sub" id="cardTodaySub">0 trade</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Threshold</div>
+      <div class="card-value" id="cardThreshold">—</div>
+      <div class="card-sub" id="cardKelly">kelly —</div>
+    </div>
+  </div>
+
+  <!-- CHARTS ROW -->
+  <div class="charts-row">
+    <!-- Equity Curve -->
+    <div class="panel">
+      <div class="panel-title"><span>▲</span> Equity Curve</div>
+      <canvas id="equityChart" height="180"></canvas>
+    </div>
+
+    <!-- Weekly P&L -->
+    <div class="panel">
+      <div class="panel-title"><span>■</span> Haftalık P&L</div>
+      <canvas id="weeklyChart" height="180"></canvas>
+    </div>
+  </div>
+
+  <!-- OPEN POSITION + DIRECTION -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+    <div class="panel">
+      <div class="panel-title"><span>◉</span> Açık Pozisyon</div>
+      <div class="position-card" id="positionCard">
+        <div class="position-header">
+          <div class="dir-badge dir-none" id="posDirBadge">BEKLIYOR</div>
+          <div style="color:var(--muted);font-size:11px" id="posBarsHeld">—</div>
+        </div>
+        <div class="pos-grid">
+          <div class="pos-item"><label>Entry</label><span id="posEntry">—</span></div>
+          <div class="pos-item"><label>Lot</label><span id="posLot">—</span></div>
+          <div class="pos-item"><label>TP</label><span id="posTp" style="color:var(--green)">—</span></div>
+          <div class="pos-item"><label>SL</label><span id="posSl" style="color:var(--red)">—</span></div>
+        </div>
+      </div>
+
+      <!-- Direction Breakdown -->
+      <div class="panel-title" style="margin-top:8px"><span>⇅</span> Direction Breakdown</div>
+      <div class="dir-bars" id="dirBars">
+        <div class="dir-bar-row">
+          <div class="dir-bar-label">LONG</div>
+          <div class="dir-bar-track"><div class="dir-bar-fill long" id="longBar" style="width:50%"></div></div>
+          <div class="dir-bar-val positive" id="longPnl">$0</div>
+        </div>
+        <div class="dir-bar-row">
+          <div class="dir-bar-label">SHORT</div>
+          <div class="dir-bar-track"><div class="dir-bar-fill short" id="shortBar" style="width:50%"></div></div>
+          <div class="dir-bar-val positive" id="shortPnl">$0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- News / Mirofish Feed -->
+    <div class="panel">
+      <div class="panel-title"><span>◈</span> Mirofish / News Feed</div>
+      <div class="news-feed" id="newsFeed">
+        <div class="news-item">
+          <div class="news-title">Feed bekleniyor...</div>
+          <div class="news-meta">Bot çalışmaya başladığında haberler burada görünecek</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TRADE HISTORY -->
+  <div class="panel" style="margin-bottom:20px">
+    <div class="panel-title"><span>≡</span> Son İşlemler</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Zaman</th>
+            <th>Yön</th>
+            <th>Entry</th>
+            <th>Exit</th>
+            <th>Lot</th>
+            <th>P&L</th>
+            <th>Sebep</th>
+            <th>Süre (bar)</th>
+            <th>Proba</th>
+          </tr>
+        </thead>
+        <tbody id="tradesBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let equityChart  = null;
+let weeklyChart  = null;
+let lastTrades   = [];
+
+function fmt(n, dec=2) {
+  if (n === null || n === undefined) return '—';
+  return Number(n).toFixed(dec);
+}
+function fmtMoney(n) {
+  if (n === null || n === undefined) return '—';
+  const v = Number(n);
+  return (v >= 0 ? '+' : '') + '$' + Math.abs(v).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+function fmtTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('tr-TR', {month:'short', day:'numeric'}) + ' ' + fmtTime(iso);
+}
+
+// ── Charts Setup ───────────────────────────────────────────────────────────
+function initCharts() {
+  Chart.defaults.color = '#64748b';
+  Chart.defaults.borderColor = '#1e2d45';
+
+  const eqCtx = document.getElementById('equityChart').getContext('2d');
+  equityChart = new Chart(eqCtx, {
+    type: 'line',
+    data: { labels: [], datasets: [{
+      label: 'Equity',
+      data: [],
+      borderColor: '#00d4ff',
+      backgroundColor: 'rgba(0,212,255,0.05)',
+      borderWidth: 1.5,
+      pointRadius: 0,
+      fill: true,
+      tension: 0.3,
+    }]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: false,
+      plugins: { legend: { display: false }, tooltip: {
+        callbacks: { label: ctx => '$' + ctx.raw.toLocaleString('en-US', {minimumFractionDigits:2}) }
+      }},
+      scales: {
+        x: { ticks: { maxTicksLimit: 6, font: {size:10} }, grid: { color:'#1e2d45' } },
+        y: {
+          ticks: {
+            font: {size:10},
+            callback: v => '$' + (v >= 1000 ? (v/1000).toFixed(1)+'k' : v.toFixed(0))
+          },
+          grid: { color:'#1e2d45' }
+        }
+      }
+    }
+  });
+
+  const wkCtx = document.getElementById('weeklyChart').getContext('2d');
+  weeklyChart = new Chart(wkCtx, {
+    type: 'bar',
+    data: { labels: [], datasets: [{
+      label: 'Haftalık P&L',
+      data: [],
+      backgroundColor: ctx => ctx.raw >= 0 ? 'rgba(0,230,118,0.7)' : 'rgba(255,68,68,0.7)',
+      borderRadius: 4,
+    }]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: false,
+      plugins: { legend: { display: false }, tooltip: {
+        callbacks: { label: ctx => fmtMoney(ctx.raw) }
+      }},
+      scales: {
+        x: { ticks: { font: {size:10} }, grid: { display:false } },
+        y: {
+          ticks: { font:{size:10}, callback: v => '$' + (Math.abs(v)>=1000 ? (v/1000).toFixed(1)+'k' : v) },
+          grid: { color:'#1e2d45' }
+        }
+      }
+    }
+  });
+}
+
+// ── Update State ───────────────────────────────────────────────────────────
+async function updateState() {
+  try {
+    const res = await fetch('/api/state');
+    const s   = await res.json();
+
+    // Mode badge
+    const modeBadge = document.getElementById('modeBadge');
+    const statusDot = document.getElementById('statusDot');
+    modeBadge.className = 'mode-badge mode-' + (s.mode || 'offline');
+    modeBadge.textContent = (s.mode || 'offline').toUpperCase();
+    statusDot.className = 'status-dot' + (s.mode === 'live' || s.mode === 'paper' ? '' : ' offline');
+
+    document.getElementById('updatedAt').textContent =
+      s.updated_at ? 'Son güncelleme: ' + fmtDate(s.updated_at) : '—';
+
+    // Stats
+    const stats  = s.stats || {};
+    const eq     = s.equity || 0;
+    const pnl    = stats.total_pnl || 0;
+    const wr     = stats.win_rate  || 0;
+    const pf     = stats.profit_factor || 0;
+    const total  = stats.total_trades  || 0;
+    const wins   = stats.wins   || 0;
+    const losses = stats.losses || 0;
+
+    document.getElementById('cardEquity').textContent = '$' + eq.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    document.getElementById('cardEquity').className   = 'card-value ' + (pnl >= 0 ? 'positive' : 'negative');
+    document.getElementById('cardEquitySub').textContent = 'başlangıç: $1,000';
+
+    document.getElementById('cardPnl').textContent = fmtMoney(pnl);
+    document.getElementById('cardPnl').className   = 'card-value ' + (pnl >= 0 ? 'positive' : 'negative');
+    document.getElementById('cardPnlSub').textContent = total + ' trade';
+
+    document.getElementById('cardWR').textContent  = (wr * 100).toFixed(1) + '%';
+    document.getElementById('cardWRSub').textContent = wins + 'W / ' + losses + 'L';
+
+    document.getElementById('cardPF').textContent  = pf.toFixed(3);
+    document.getElementById('cardPF').className    = 'card-value ' + (pf >= 1.5 ? 'positive' : pf < 1 ? 'negative' : '');
+
+    // Today's P&L
+    const trades  = s.trades || [];
+    const today   = new Date().toISOString().slice(0,10);
+    const todayTr = trades.filter(t => (t.close_ts || '').startsWith(today));
+    const todayPnl= todayTr.reduce((a,t) => a + (t.pnl || 0), 0);
+    document.getElementById('cardToday').textContent = fmtMoney(todayPnl);
+    document.getElementById('cardToday').className   = 'card-value ' + (todayPnl >= 0 ? 'positive' : 'negative');
+    document.getElementById('cardTodaySub').textContent = todayTr.length + ' trade bugün';
+
+    // Params
+    const p = s.params || {};
+    document.getElementById('cardThreshold').textContent = p.threshold ?? '—';
+    document.getElementById('cardKelly').textContent =
+      p.kelly_fraction ? `kelly ${p.kelly_fraction} | max risk ${p.kelly_max_risk}%` : 'kelly: kapalı';
+
+    // Open Position
+    const pos = s.open_position || {};
+    const badge = document.getElementById('posDirBadge');
+    if (pos.active) {
+      badge.textContent  = pos.direction || '?';
+      badge.className    = 'dir-badge ' + (pos.direction === 'LONG' ? 'dir-long' : 'dir-short');
+      document.getElementById('posBarsHeld').textContent = (pos.bars_held || 0) + ' bar';
+      document.getElementById('posEntry').textContent = fmt(pos.entry, 2);
+      document.getElementById('posLot').textContent   = fmt(pos.lot, 2);
+      document.getElementById('posTp').textContent    = fmt(pos.tp, 2);
+      document.getElementById('posSl').textContent    = fmt(pos.sl, 2);
+    } else {
+      badge.textContent = 'BEKLIYOR';
+      badge.className   = 'dir-badge dir-none';
+      document.getElementById('posBarsHeld').textContent = '—';
+      document.getElementById('posEntry').textContent = '—';
+      document.getElementById('posLot').textContent   = '—';
+      document.getElementById('posTp').textContent    = '—';
+      document.getElementById('posSl').textContent    = '—';
+    }
+
+    // Direction Breakdown
+    const longTrades  = trades.filter(t => t.dir === 'LONG');
+    const shortTrades = trades.filter(t => t.dir === 'SHORT');
+    const longPnl     = longTrades.reduce((a,t) => a + (t.pnl||0), 0);
+    const shortPnl    = shortTrades.reduce((a,t) => a + (t.pnl||0), 0);
+    const maxAbs = Math.max(Math.abs(longPnl), Math.abs(shortPnl), 1);
+    document.getElementById('longBar').style.width  = (Math.abs(longPnl)  / maxAbs * 100) + '%';
+    document.getElementById('shortBar').style.width = (Math.abs(shortPnl) / maxAbs * 100) + '%';
+    document.getElementById('longPnl').textContent  = fmtMoney(longPnl);
+    document.getElementById('longPnl').className    = 'dir-bar-val ' + (longPnl  >= 0 ? 'positive' : 'negative');
+    document.getElementById('shortPnl').textContent = fmtMoney(shortPnl);
+    document.getElementById('shortPnl').className   = 'dir-bar-val ' + (shortPnl >= 0 ? 'positive' : 'negative');
+
+    // Trades Table (last 50, newest first)
+    const tbody = document.getElementById('tradesBody');
+    const recent = [...trades].reverse().slice(0, 50);
+    tbody.innerHTML = recent.map((t, i) => {
+      const pnlCls = (t.pnl || 0) >= 0 ? 'pnl-pos' : 'pnl-neg';
+      const reason = (t.reason || '').toUpperCase();
+      const rCls   = reason === 'TP' ? 'reason-tp' : reason === 'SL' ? 'reason-sl'
+                   : reason.includes('TIME') ? 'reason-time' : 'reason-other';
+      const dirCls = t.dir === 'LONG' ? 'pnl-pos' : 'pnl-neg';
+      return `<tr>
+        <td style="color:var(--muted)">${trades.length - i}</td>
+        <td>${fmtDate(t.close_ts)}</td>
+        <td class="${dirCls}" style="font-weight:700">${t.dir || '—'}</td>
+        <td>${fmt(t.entry, 2)}</td>
+        <td>${fmt(t.exit,  2)}</td>
+        <td style="color:var(--muted)">${fmt(t.lot, 2)}</td>
+        <td class="${pnlCls}" style="font-weight:700">${fmtMoney(t.pnl)}</td>
+        <td class="${rCls}">${reason}</td>
+        <td style="color:var(--muted)">${t.bars_held ?? '—'}</td>
+        <td style="color:var(--muted)">${t.proba ? fmt(t.proba*100, 1)+'%' : '—'}</td>
+      </tr>`;
+    }).join('');
+
+  } catch(e) {
+    console.warn('State fetch failed:', e);
+  }
+}
+
+async function updateEquityCurve() {
+  try {
+    const res    = await fetch('/api/equity_curve');
+    const points = await res.json();
+    if (!points.length) return;
+
+    equityChart.data.labels   = points.map(p => fmtTime(p.t));
+    equityChart.data.datasets[0].data = points.map(p => p.v);
+    equityChart.update('none');
+  } catch(e) {}
+}
+
+async function updateWeekly() {
+  try {
+    const res  = await fetch('/api/weekly_pnl');
+    const data = await res.json();
+    if (!data.length) return;
+
+    weeklyChart.data.labels = data.map(d => d.week.slice(5)); // MM-DD
+    weeklyChart.data.datasets[0].data = data.map(d => d.pnl);
+    weeklyChart.update('none');
+  } catch(e) {}
+}
+
+async function updateNews() {
+  try {
+    const res  = await fetch('/api/news');
+    const news = await res.json();
+    const feed = document.getElementById('newsFeed');
+    if (!news.length) return;
+
+    feed.innerHTML = news.reverse().map(n => {
+      const bias = (n.bias || '').toLowerCase();
+      const cls  = bias.includes('bull') ? 'bullish' : bias.includes('bear') ? 'bearish' : '';
+      return `<div class="news-item ${cls}">
+        <div class="news-title">${n.title || n.headline || n.summary || 'Haber'}</div>
+        <div class="news-meta">${fmtDate(n.ts || n.timestamp)} ${bias ? '· ' + bias.toUpperCase() : ''}</div>
+      </div>`;
+    }).join('');
+  } catch(e) {}
+}
+
+// ── Init & Poll ────────────────────────────────────────────────────────────
+initCharts();
+
+async function refresh() {
+  await Promise.all([updateState(), updateEquityCurve(), updateWeekly(), updateNews()]);
+}
+
+refresh();
+setInterval(refresh, 5000);   // her 5 saniyede bir güncelle
+</script>
+</body>
+</html>

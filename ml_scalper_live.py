@@ -25,11 +25,12 @@ Gereksinimler:
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import sys
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -65,6 +66,7 @@ MAGIC        = 20260418        # unique ID — ML Scalper trades
 WARMUP_BARS  = 600             # bars needed for features (M15 needs 50*15=750 M1 bars)
 GOLD_PV      = 100.0
 POLL_SECONDS = 5               # how often to check for new bar
+STATE_FILE   = Path(__file__).parent / 'logs' / 'ml_scalper' / 'live_state.json'
 
 
 # ─── State ───────────────────────────────────────────────────────────────────
@@ -80,6 +82,53 @@ class LiveState:
     open_lot:         float  = 0.01
     open_bar_count:   int    = 0
     trade_log:        list   = field(default_factory=list)
+
+
+# ─── State Persistence ───────────────────────────────────────────────────────
+
+def save_state(state: LiveState, params: MLScalperParams, mode: str = 'live') -> None:
+    """Write current state to JSON — dashboard reads this file."""
+    trades = state.trade_log[-200:]  # keep last 200 trades
+    wins   = [t for t in trades if t.get('pnl', 0) > 0]
+    losses = [t for t in trades if t.get('pnl', 0) <= 0]
+    gross_profit = sum(t.get('pnl', 0) for t in wins)
+    gross_loss   = abs(sum(t.get('pnl', 0) for t in losses))
+
+    data = {
+        'updated_at':   datetime.now(timezone.utc).isoformat(),
+        'mode':         mode,
+        'symbol':       SYMBOL,
+        'params': {
+            'threshold':      params.threshold,
+            'tp_pts':         params.tp_pts,
+            'sl_pts':         params.sl_pts,
+            'kelly_fraction': params.kelly_fraction,
+            'kelly_max_risk': params.kelly_max_risk_pct,
+        },
+        'equity':         state.equity,
+        'open_position':  {
+            'active':    state.open_ticket is not None,
+            'ticket':    state.open_ticket,
+            'direction': state.open_dir,
+            'entry':     state.open_entry,
+            'tp':        state.open_tp,
+            'sl':        state.open_sl,
+            'lot':       state.open_lot,
+            'bars_held': state.open_bar_count,
+        },
+        'stats': {
+            'total_trades': len(trades),
+            'wins':         len(wins),
+            'losses':       len(losses),
+            'win_rate':     len(wins) / len(trades) if trades else 0.0,
+            'gross_profit': round(gross_profit, 2),
+            'gross_loss':   round(gross_loss, 2),
+            'profit_factor': round(gross_profit / gross_loss, 3) if gross_loss > 0 else 0.0,
+            'total_pnl':    round(gross_profit - gross_loss, 2),
+        },
+        'trades': trades,
+    }
+    STATE_FILE.write_text(json.dumps(data, indent=2, default=str))
 
 
 # ─── Signal Engine ───────────────────────────────────────────────────────────
@@ -156,14 +205,27 @@ def check_open_position(
     tickets   = {p['ticket'] for p in positions if p.get('magic') == MAGIC}
 
     if state.open_ticket not in tickets:
-        # Position closed (TP or SL hit by MT5)
-        log.info(f"Position {state.open_ticket} closed by MT5 (TP/SL/manual)")
+        # Position closed (TP or SL hit by MT5) — estimate pnl from SL/TP distance
+        import MetaTrader5 as mt5
+        tick    = mt5.symbol_info_tick(SYMBOL)
+        last_px = tick.bid if tick else state.open_entry
+        if state.open_dir == 'LONG':
+            raw_pnl = (last_px - state.open_entry)
+        else:
+            raw_pnl = (state.open_entry - last_px)
+        pnl = round(raw_pnl * state.open_lot * GOLD_PV, 2)
+
+        log.info(f"Position {state.open_ticket} closed by MT5 | est. PnL ${pnl:+.2f}")
         state.trade_log.append({
-            'ticket':   state.open_ticket,
-            'dir':      state.open_dir,
-            'entry':    state.open_entry,
-            'close_ts': datetime.now(timezone.utc).isoformat(),
-            'reason':   'MT5_CLOSE',
+            'ticket':    state.open_ticket,
+            'dir':       state.open_dir,
+            'entry':     state.open_entry,
+            'exit':      round(last_px, 2),
+            'lot':       state.open_lot,
+            'pnl':       pnl,
+            'bars_held': state.open_bar_count,
+            'close_ts':  datetime.now(timezone.utc).isoformat(),
+            'reason':    'MT5_CLOSE',
         })
         state.open_ticket = None
         state.open_dir    = None
@@ -343,6 +405,9 @@ def run_live(args: argparse.Namespace) -> None:
                 open_trade(order_mgr, state, 'LONG',  params, long_p,  args.paper)
             elif want_short:
                 open_trade(order_mgr, state, 'SHORT', params, short_p, args.paper)
+
+            # Persist state for dashboard
+            save_state(state, params, mode='paper' if args.paper else 'live')
 
     except KeyboardInterrupt:
         log.info("Stopped by user")
