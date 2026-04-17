@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EvolutionaryQuant — ML Scalper</title>
+<title>EvolutionaryQuant — Trading Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
   :root {
@@ -208,6 +208,49 @@
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: var(--bg); }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ── Tabs ── */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    padding: 0 24px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--muted);
+    font-family: var(--font);
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .tab-section { display: none; }
+  .tab-section.active { display: block; }
+
+  /* ── Algo Core — 2-col strategy grid ── */
+  .algo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  @media (max-width: 900px) { .algo-grid { grid-template-columns: 1fr; } }
+
+  /* ── Sentiment card ── */
+  .sentiment-score {
+    font-size: 32px;
+    font-weight: 700;
+    text-align: center;
+    padding: 12px 0 4px;
+  }
+  .sentiment-score.bullish { color: var(--green); }
+  .sentiment-score.bearish { color: var(--red); }
+  .sentiment-score.flat    { color: var(--muted); }
+  .sentiment-summary { font-size: 11px; color: var(--muted); line-height: 1.5; margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -223,6 +266,14 @@
   <div class="updated-at" id="updatedAt">—</div>
 </div>
 
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('ml')">ML Scalper</button>
+  <button class="tab-btn" onclick="switchTab('algo')">Algo Core</button>
+</div>
+
+<!-- ═══════════════════════ ML SCALPER TAB ═══════════════════════ -->
+<div id="tab-ml" class="tab-section active">
 <div class="container">
 
   <!-- STAT CARDS -->
@@ -344,6 +395,118 @@
   </div>
 
 </div><!-- /container -->
+</div><!-- /tab-ml -->
+
+<!-- ═══════════════════════ ALGO CORE TAB ═══════════════════════ -->
+<div id="tab-algo" class="tab-section">
+<div class="container">
+
+  <!-- SENTIMENT + SUMMARY -->
+  <div style="display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:20px">
+    <div class="panel">
+      <div class="panel-title"><span>◈</span> MiroFish Sentiment</div>
+      <div class="sentiment-score flat" id="algoSentScore">0.00</div>
+      <div style="text-align:center;font-size:13px;font-weight:700;margin-bottom:8px" id="algoSentAction">FLAT</div>
+      <div class="sentiment-summary" id="algoSentSummary">MiroFish çalışmaya başladığında sentiment burada görünecek.</div>
+      <div style="color:var(--muted);font-size:10px;margin-top:8px" id="algoSentAge">—</div>
+    </div>
+    <div class="panel">
+      <div class="panel-title"><span>▲</span> Algo Core Equity Curve</div>
+      <canvas id="algoEquityChart" height="160"></canvas>
+    </div>
+  </div>
+
+  <!-- GOLD SCALPER + NQ LIQUIDITY STATS -->
+  <div class="algo-grid">
+
+    <!-- Gold Scalper -->
+    <div class="panel">
+      <div class="panel-title"><span style="color:#ffd600">●</span> Gold Scalper — XAUUSD</div>
+      <div class="cards" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px">
+        <div class="card green">
+          <div class="card-label">Total P&L</div>
+          <div class="card-value" id="goldPnl">$0</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Win Rate</div>
+          <div class="card-value" id="goldWR">0%</div>
+          <div class="card-sub" id="goldWRSub">0W/0L</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Profit Factor</div>
+          <div class="card-value" id="goldPF">0.00</div>
+        </div>
+      </div>
+      <div class="panel-title"><span>◉</span> Açık Pozisyon</div>
+      <div class="position-card">
+        <div class="position-header">
+          <div class="dir-badge dir-none" id="goldPosBadge">BEKLIYOR</div>
+          <div style="color:var(--muted);font-size:11px" id="goldPosBars">—</div>
+        </div>
+        <div class="pos-grid">
+          <div class="pos-item"><label>Entry</label><span id="goldPosEntry">—</span></div>
+          <div class="pos-item"><label>Lot</label><span id="goldPosLot">—</span></div>
+          <div class="pos-item"><label>TP</label><span id="goldPosTp" style="color:var(--green)">—</span></div>
+          <div class="pos-item"><label>SL</label><span id="goldPosSl" style="color:var(--red)">—</span></div>
+        </div>
+      </div>
+      <div class="table-wrap" style="max-height:180px;margin-top:8px">
+        <table>
+          <thead><tr><th>Zaman</th><th>Yön</th><th>Entry</th><th>Exit</th><th>P&L</th><th>Sebep</th></tr></thead>
+          <tbody id="goldTradesBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- NQ Liquidity -->
+    <div class="panel">
+      <div class="panel-title"><span style="color:#00d4ff">●</span> NQ Liquidity — NAS100</div>
+      <div class="cards" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px">
+        <div class="card green">
+          <div class="card-label">Total P&L</div>
+          <div class="card-value" id="nqPnl">$0</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Win Rate</div>
+          <div class="card-value" id="nqWR">0%</div>
+          <div class="card-sub" id="nqWRSub">0W/0L</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Profit Factor</div>
+          <div class="card-value" id="nqPF">0.00</div>
+        </div>
+      </div>
+      <div class="panel-title"><span>◉</span> Açık Pozisyon</div>
+      <div class="position-card">
+        <div class="position-header">
+          <div class="dir-badge dir-none" id="nqPosBadge">BEKLIYOR</div>
+          <div style="color:var(--muted);font-size:11px" id="nqPosBars">—</div>
+        </div>
+        <div class="pos-grid">
+          <div class="pos-item"><label>Entry</label><span id="nqPosEntry">—</span></div>
+          <div class="pos-item"><label>Lot</label><span id="nqPosLot">—</span></div>
+          <div class="pos-item"><label>TP</label><span id="nqPosTp" style="color:var(--green)">—</span></div>
+          <div class="pos-item"><label>SL</label><span id="nqPosSl" style="color:var(--red)">—</span></div>
+        </div>
+      </div>
+      <div class="table-wrap" style="max-height:180px;margin-top:8px">
+        <table>
+          <thead><tr><th>Zaman</th><th>Yön</th><th>Entry</th><th>Exit</th><th>P&L</th><th>Sebep</th></tr></thead>
+          <tbody id="nqTradesBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /algo-grid -->
+
+  <!-- Algo Weekly P&L -->
+  <div class="panel" style="margin-bottom:20px">
+    <div class="panel-title"><span>■</span> Algo Core — Haftalık P&L</div>
+    <canvas id="algoWeeklyChart" height="120"></canvas>
+  </div>
+
+</div><!-- /container -->
+</div><!-- /tab-algo -->
 
 <script>
 // ── State ──────────────────────────────────────────────────────────────────
@@ -593,11 +756,184 @@ async function updateNews() {
   } catch(e) {}
 }
 
+// ── Tab switching ──────────────────────────────────────────────────────────
+let activeTab = 'ml';
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', (i === 0 && tab === 'ml') || (i === 1 && tab === 'algo'));
+  });
+  document.getElementById('tab-ml').classList.toggle('active', tab === 'ml');
+  document.getElementById('tab-algo').classList.toggle('active', tab === 'algo');
+}
+
+// ── Algo Core Charts ───────────────────────────────────────────────────────
+let algoEquityChart = null;
+let algoWeeklyChart = null;
+
+function initAlgoCharts() {
+  const eqCtx = document.getElementById('algoEquityChart').getContext('2d');
+  algoEquityChart = new Chart(eqCtx, {
+    type: 'line',
+    data: { labels: [], datasets: [
+      { label: 'Gold', data: [], borderColor: '#ffd600', backgroundColor: 'rgba(255,214,0,0.05)',
+        borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0.3 },
+      { label: 'NQ',   data: [], borderColor: '#00d4ff', backgroundColor: 'rgba(0,212,255,0.05)',
+        borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0.3 },
+    ]},
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: {
+        legend: { display: true, labels: { color: '#64748b', font: {size:10}, boxWidth:12 } },
+        tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': $' + ctx.raw.toFixed(2) } }
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit:6, font:{size:10} }, grid:{color:'#1e2d45'} },
+        y: { ticks: { font:{size:10}, callback: v => '$'+(Math.abs(v)>=1000?(v/1000).toFixed(1)+'k':v.toFixed(0)) },
+             grid:{color:'#1e2d45'} }
+      }
+    }
+  });
+
+  const wkCtx = document.getElementById('algoWeeklyChart').getContext('2d');
+  algoWeeklyChart = new Chart(wkCtx, {
+    type: 'bar',
+    data: { labels: [], datasets: [{ label: 'Haftalık P&L', data: [],
+      backgroundColor: ctx => ctx.raw >= 0 ? 'rgba(0,230,118,0.7)' : 'rgba(255,68,68,0.7)',
+      borderRadius: 4 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend:{display:false}, tooltip:{callbacks:{label:ctx=>fmtMoney(ctx.raw)}} },
+      scales: {
+        x: { ticks:{font:{size:10}}, grid:{display:false} },
+        y: { ticks:{font:{size:10}, callback:v=>'$'+(Math.abs(v)>=1000?(v/1000).toFixed(1)+'k':v)},
+             grid:{color:'#1e2d45'} }
+      }
+    }
+  });
+}
+
+function fillPosition(prefix, pos) {
+  const badge = document.getElementById(prefix+'PosBadge');
+  const bars  = document.getElementById(prefix+'PosBars');
+  if (pos && pos.active) {
+    badge.textContent = pos.direction || '?';
+    badge.className   = 'dir-badge ' + (pos.direction === 'LONG' ? 'dir-long' : 'dir-short');
+    bars.textContent  = (pos.bars_held||0) + ' bar';
+    document.getElementById(prefix+'PosEntry').textContent = fmt(pos.entry,2);
+    document.getElementById(prefix+'PosLot').textContent   = fmt(pos.lot,2);
+    document.getElementById(prefix+'PosTp').textContent    = fmt(pos.tp,2);
+    document.getElementById(prefix+'PosSl').textContent    = fmt(pos.sl,2);
+  } else {
+    badge.textContent = 'BEKLIYOR';
+    badge.className   = 'dir-badge dir-none';
+    bars.textContent  = '—';
+    ['Entry','Lot','Tp','Sl'].forEach(f => document.getElementById(prefix+'Pos'+f).textContent = '—');
+  }
+}
+
+function fillTradesTable(tbodyId, trades) {
+  const tbody  = document.getElementById(tbodyId);
+  const recent = [...trades].reverse().slice(0, 30);
+  tbody.innerHTML = recent.map(t => {
+    const pnlCls = (t.pnl||0)>=0 ? 'pnl-pos' : 'pnl-neg';
+    const dirCls = t.dir==='LONG' ? 'pnl-pos' : 'pnl-neg';
+    return `<tr>
+      <td>${fmtDate(t.close_ts)}</td>
+      <td class="${dirCls}" style="font-weight:700">${t.dir||'—'}</td>
+      <td>${fmt(t.entry,2)}</td>
+      <td>${fmt(t.exit,2)}</td>
+      <td class="${pnlCls}" style="font-weight:700">${fmtMoney(t.pnl)}</td>
+      <td style="color:var(--muted);font-size:10px">${(t.reason||'').toUpperCase()}</td>
+    </tr>`;
+  }).join('');
+}
+
+function fillStats(prefix, stats) {
+  const pnl = stats.total_pnl || 0;
+  const wr  = stats.win_rate  || 0;
+  const pf  = stats.profit_factor || 0;
+  const w   = stats.wins   || 0;
+  const l   = stats.losses || 0;
+  const el  = document.getElementById(prefix+'Pnl');
+  el.textContent = fmtMoney(pnl);
+  el.className   = 'card-value ' + (pnl>=0?'positive':'negative');
+  document.getElementById(prefix+'WR').textContent  = (wr*100).toFixed(1)+'%';
+  document.getElementById(prefix+'WRSub').textContent = w+'W/'+l+'L';
+  const pfEl = document.getElementById(prefix+'PF');
+  pfEl.textContent = pf.toFixed(3);
+  pfEl.className   = 'card-value '+(pf>=1.5?'positive':pf<1?'negative':'');
+}
+
+async function updateAlgoState() {
+  try {
+    const res = await fetch('/api/algo/state');
+    const s   = await res.json();
+
+    // Sentiment
+    const sent = s.sentiment || {};
+    const score = sent.score || 0;
+    const scoreEl = document.getElementById('algoSentScore');
+    scoreEl.textContent = (score >= 0 ? '+' : '') + score.toFixed(3);
+    scoreEl.className   = 'sentiment-score ' + (score > 0.1 ? 'bullish' : score < -0.1 ? 'bearish' : 'flat');
+    const action = sent.action || 'FLAT';
+    const actionEl = document.getElementById('algoSentAction');
+    actionEl.textContent = action;
+    actionEl.style.color = action === 'LONG' ? 'var(--green)' : action === 'SHORT' ? 'var(--red)' : 'var(--muted)';
+    document.getElementById('algoSentSummary').textContent = sent.summary || '—';
+    document.getElementById('algoSentAge').textContent = sent.age_min ? `Son güncelleme: ${sent.age_min} dk önce` : '—';
+
+    // Gold Scalper
+    const gold = s.gold_scalper || {};
+    fillStats('gold', gold.stats || {});
+    fillPosition('gold', gold.open_position);
+    fillTradesTable('goldTradesBody', gold.trades || []);
+
+    // NQ Liquidity
+    const nq = s.nq_liquidity || {};
+    fillStats('nq', nq.stats || {});
+    fillPosition('nq', nq.open_position);
+    fillTradesTable('nqTradesBody', nq.trades || []);
+
+  } catch(e) { console.warn('Algo state fetch failed:', e); }
+}
+
+async function updateAlgoCharts() {
+  try {
+    const [goldRes, nqRes, wkRes] = await Promise.all([
+      fetch('/api/algo/gold/equity_curve'),
+      fetch('/api/algo/nq/equity_curve'),
+      fetch('/api/algo/weekly_pnl'),
+    ]);
+    const goldPts = await goldRes.json();
+    const nqPts   = await nqRes.json();
+    const wkData  = await wkRes.json();
+
+    if (goldPts.length || nqPts.length) {
+      const labels = (goldPts.length ? goldPts : nqPts).map(p => fmtTime(p.t));
+      algoEquityChart.data.labels = labels;
+      algoEquityChart.data.datasets[0].data = goldPts.map(p => p.v);
+      algoEquityChart.data.datasets[1].data = nqPts.map(p => p.v);
+      algoEquityChart.update('none');
+    }
+
+    if (wkData.length) {
+      algoWeeklyChart.data.labels = wkData.map(d => d.week.slice(5));
+      algoWeeklyChart.data.datasets[0].data = wkData.map(d => d.pnl);
+      algoWeeklyChart.update('none');
+    }
+  } catch(e) {}
+}
+
 // ── Init & Poll ────────────────────────────────────────────────────────────
 initCharts();
+initAlgoCharts();
 
 async function refresh() {
-  await Promise.all([updateState(), updateEquityCurve(), updateWeekly(), updateNews()]);
+  await Promise.all([
+    updateState(), updateEquityCurve(), updateWeekly(), updateNews(),
+    updateAlgoState(), updateAlgoCharts(),
+  ]);
 }
 
 refresh();

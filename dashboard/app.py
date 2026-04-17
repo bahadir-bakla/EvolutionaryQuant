@@ -1,9 +1,13 @@
 """
-ML Scalper Dashboard — FastAPI Backend
-=======================================
-Kullanım:
-  pip install fastapi uvicorn jinja2
-  python dashboard/app.py          # http://localhost:8080
+Trading Dashboard — FastAPI Backend
+=====================================
+Serves state from both live engines:
+  - ML Scalper    (logs/ml_scalper/live_state.json)
+  - Algo Director (logs/algo_director/algo_state.json)
+
+Usage:
+  pip install fastapi uvicorn jinja2 pandas
+  python dashboard/app.py              # http://localhost:8080
   python dashboard/app.py --port 8080 --host 0.0.0.0
 """
 
@@ -11,23 +15,24 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime, timezone
 from pathlib import Path
 
+import uvicorn
 from fastapi import FastAPI
+from fastapi.requests import Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.requests import Request
-import uvicorn
 
 BASE_DIR      = Path(__file__).parent
 TEMPLATES_DIR = BASE_DIR / 'templates'
 STATIC_DIR    = BASE_DIR / 'static'
-STATE_FILE    = BASE_DIR.parent / 'logs' / 'ml_scalper' / 'live_state.json'
-NEWS_LOG      = BASE_DIR.parent / 'logs' / 'ml_scalper' / 'news_feed.json'
 
-app = FastAPI(title='ML Scalper Dashboard', docs_url=None, redoc_url=None)
+ML_STATE_FILE   = BASE_DIR.parent / 'logs' / 'ml_scalper'   / 'live_state.json'
+ALGO_STATE_FILE = BASE_DIR.parent / 'logs' / 'algo_director' / 'algo_state.json'
+NEWS_LOG        = BASE_DIR.parent / 'logs' / 'ml_scalper'   / 'news_feed.json'
+
+app = FastAPI(title='Trading Dashboard', docs_url=None, redoc_url=None)
 
 if STATIC_DIR.exists():
     app.mount('/static', StaticFiles(directory=str(STATIC_DIR)), name='static')
@@ -35,10 +40,12 @@ if STATIC_DIR.exists():
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
-def _load_state() -> dict:
-    if STATE_FILE.exists():
+# ─── Loaders ─────────────────────────────────────────────────────────────────
+
+def _load_ml_state() -> dict:
+    if ML_STATE_FILE.exists():
         try:
-            return json.loads(STATE_FILE.read_text())
+            return json.loads(ML_STATE_FILE.read_text())
         except Exception:
             pass
     return {
@@ -56,6 +63,21 @@ def _load_state() -> dict:
     }
 
 
+def _load_algo_state() -> dict:
+    if ALGO_STATE_FILE.exists():
+        try:
+            return json.loads(ALGO_STATE_FILE.read_text())
+        except Exception:
+            pass
+    return {
+        'updated_at': None,
+        'mode': 'offline',
+        'sentiment': {'score': 0, 'action': 'FLAT', 'summary': '', 'age_min': 0},
+        'gold_scalper':  {'stats': {}, 'open_position': {'active': False}, 'trades': []},
+        'nq_liquidity': {'stats': {}, 'open_position': {'active': False}, 'trades': []},
+    }
+
+
 def _load_news() -> list:
     if NEWS_LOG.exists():
         try:
@@ -65,60 +87,112 @@ def _load_news() -> list:
     return []
 
 
+def _build_equity_curve(trades: list, initial: float = 1000.0) -> list:
+    points = [{'t': '', 'v': initial}]
+    running = initial
+    for t in trades:
+        running += t.get('pnl', 0)
+        points.append({'t': t.get('close_ts', ''), 'v': round(running, 2)})
+    return points
+
+
+def _weekly_pnl(trades: list) -> list:
+    try:
+        import pandas as pd
+        rows = [
+            {'ts': pd.to_datetime(t['close_ts']), 'pnl': t.get('pnl', 0)}
+            for t in trades if t.get('close_ts')
+        ]
+        if not rows:
+            return []
+        df = pd.DataFrame(rows).set_index('ts')
+        weekly = df['pnl'].resample('W').sum().tail(12)
+        return [{'week': str(idx.date()), 'pnl': round(v, 2)} for idx, v in weekly.items()]
+    except Exception:
+        return []
+
+
+# ─── Routes ──────────────────────────────────────────────────────────────────
+
 @app.get('/', response_class=HTMLResponse)
 async def dashboard(request: Request):
     return templates.TemplateResponse('index.html', {'request': request})
 
 
+# ── ML Scalper endpoints ──────────────────────────────────────────────────────
+
 @app.get('/api/state')
-async def api_state():
-    return JSONResponse(_load_state())
+async def api_ml_state():
+    return JSONResponse(_load_ml_state())
 
 
 @app.get('/api/equity_curve')
-async def api_equity_curve():
-    state = _load_state()
-    trades = state.get('trades', [])
-    initial = 1000.0
-
-    points = [{'t': state.get('updated_at', ''), 'v': initial}]
-    running = initial
-    for t in trades:
-        running += t.get('pnl', 0)
-        points.append({'t': t.get('close_ts', ''), 'v': round(running, 2)})
-
-    return JSONResponse(points)
+async def api_ml_equity_curve():
+    state = _load_ml_state()
+    return JSONResponse(_build_equity_curve(state.get('trades', [])))
 
 
 @app.get('/api/weekly_pnl')
-async def api_weekly_pnl():
-    import pandas as pd
-    state  = _load_state()
-    trades = state.get('trades', [])
-    if not trades:
-        return JSONResponse([])
-
-    rows = []
-    for t in trades:
-        ts = t.get('close_ts')
-        if ts:
-            rows.append({'ts': pd.to_datetime(ts), 'pnl': t.get('pnl', 0)})
-
-    if not rows:
-        return JSONResponse([])
-
-    df = pd.DataFrame(rows).set_index('ts')
-    weekly = df['pnl'].resample('W').sum().tail(12)
-    return JSONResponse([
-        {'week': str(idx.date()), 'pnl': round(v, 2)}
-        for idx, v in weekly.items()
-    ])
+async def api_ml_weekly_pnl():
+    state = _load_ml_state()
+    return JSONResponse(_weekly_pnl(state.get('trades', [])))
 
 
 @app.get('/api/news')
 async def api_news():
     return JSONResponse(_load_news())
 
+
+# ── Algo Director endpoints ───────────────────────────────────────────────────
+
+@app.get('/api/algo/state')
+async def api_algo_state():
+    return JSONResponse(_load_algo_state())
+
+
+@app.get('/api/algo/equity_curve')
+async def api_algo_equity_curve():
+    state = _load_algo_state()
+    gold_trades = state.get('gold_scalper', {}).get('trades', [])
+    nq_trades   = state.get('nq_liquidity', {}).get('trades', [])
+    # Merge and sort by close_ts
+    all_trades = sorted(
+        gold_trades + nq_trades,
+        key=lambda t: t.get('close_ts', ''),
+    )
+    return JSONResponse(_build_equity_curve(all_trades))
+
+
+@app.get('/api/algo/gold/equity_curve')
+async def api_algo_gold_equity_curve():
+    state = _load_algo_state()
+    trades = state.get('gold_scalper', {}).get('trades', [])
+    return JSONResponse(_build_equity_curve(trades))
+
+
+@app.get('/api/algo/nq/equity_curve')
+async def api_algo_nq_equity_curve():
+    state = _load_algo_state()
+    trades = state.get('nq_liquidity', {}).get('trades', [])
+    return JSONResponse(_build_equity_curve(trades))
+
+
+@app.get('/api/algo/weekly_pnl')
+async def api_algo_weekly_pnl():
+    state = _load_algo_state()
+    gold_trades = state.get('gold_scalper', {}).get('trades', [])
+    nq_trades   = state.get('nq_liquidity', {}).get('trades', [])
+    all_trades  = gold_trades + nq_trades
+    return JSONResponse(_weekly_pnl(all_trades))
+
+
+@app.get('/api/algo/sentiment')
+async def api_sentiment():
+    state = _load_algo_state()
+    return JSONResponse(state.get('sentiment', {}))
+
+
+# ─── Main ─────────────────────────────────────────────────────────────────────
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
