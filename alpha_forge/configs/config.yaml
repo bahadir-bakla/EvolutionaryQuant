@@ -1,0 +1,92 @@
+# Alpha-Forge Configuration
+
+# Instruments to trade
+instruments:
+  - name: "NQ"
+    symbol: "NAS100"
+    description: "Nasdaq 100"
+    point_value: 0.25
+    lot_size: 1.0
+    session: "US"
+    session_start: "09:30"
+    session_end: "16:00"
+
+  - name: "ES"
+    symbol: "US500"
+    description: "S&P 500"
+    point_value: 0.25
+    lot_size: 1.0
+    session: "US"
+    session_start: "09:30"
+    session_end: "16:00"
+
+  - name: "XAUUSD"
+    symbol: "XAUUSD"
+    description: "Gold"
+    point_value: 0.01
+    lot_size: 100.0
+    session: "24h"
+
+  - name: "XAGUSD"
+    symbol: "XAGUSD"
+    description: "Silver"
+    point_value: 0.001
+    lot_size: 5000.0
+    session: "24h"
+
+# AI Services
+services:
+  timesfm_url: "http://localhost:8001"
+  gemma_url: "http://localhost:8002"
+  mirofish_url: "http://localhost:8003"
+
+# Risk Management
+risk:
+  max_daily_loss_pct: 0.05       # 5% daily loss limit
+  max_drawdown_pct: 0.15         # 15% max drawdown
+  max_position_size_pct: 0.10    # 10% max position size
+  max_correlated_positions: 2
+  risk_per_trade_pct: 0.03       # 3% risk per trade
+
+# Position Sizing
+position_sizing:
+  method: "risk_based"           # risk_based, fixed, kelly
+  min_lot: 0.01
+  max_lot: 5.0
+  kelly_fraction: 0.25           # Quarter Kelly
+
+# Data
+data:
+  timeframes: ["5m", "1h", "4h"]
+  lookback_days: 730             # 2 years
+  context_length: 512            # TimesFM context
+  forecast_horizon: 96           # TimesFM horizon
+
+# DEAP Evolution
+evolution:
+  population_size: 80
+  n_generations: 40
+  cxpb: 0.7
+  mutpb: 0.2
+  tournsize: 5
+  hof_size: 15
+  stagnation_limit: 20
+  eval_days: 365       # 1 yil goster DEAP'a, overfitting engellensin
+
+# Execution
+execution:
+  slippage_points: 2
+  commission_pct: 0.0001
+  max_retries: 3
+  retry_delay_ms: 500
+
+# Database
+database:
+  url: "sqlite:///data/alphaforgedb.sqlite"
+
+# Logging
+logging:
+  level: "INFO"
+  file: "logs/alphaforgedb.log"
+  max_size_mb: 100
+  backup_count: 5

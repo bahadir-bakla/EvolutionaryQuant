@@ -175,7 +175,10 @@ class GoldMasterBacktester:
 
                     if closed:
                         balance += pnl
-                        trades.append({'pnl': pnl, 'reason': reason})
+                        trades.append({'pnl': pnl, 'reason': reason,
+                                       'dir': open_pos['dir'],
+                                       'entry_ts': open_pos.get('ts'),
+                                       'exit_ts': df2.index[i]})
                         open_pos = None
                         if verbose:
                             print(f"  [{df2.index[i]}] {reason}: ${pnl:.2f} | Bal: ${balance:.2f}")
@@ -200,7 +203,7 @@ class GoldMasterBacktester:
                             row['close'] > support and fvg_ok):
                         if mb_th < 0.05 or meta >= -mb_th:
                             entry = price * (1 + self.slippage)
-                            open_pos = {'entry': entry, 'dir': 1,
+                            open_pos = {'entry': entry, 'dir': 1, 'ts': df2.index[i],
                                         'size': lot, 'sl_pts': sl_pts, 'tp_pts': tp_pts}
                             support_taps = 0
                             if verbose:
@@ -212,7 +215,7 @@ class GoldMasterBacktester:
                               (row['fvg_bearish'] if p.fvg_required else True)):
                         if mb_th < 0.05 or meta <= mb_th:
                             entry = price * (1 - self.slippage)
-                            open_pos = {'entry': entry, 'dir': -1,
+                            open_pos = {'entry': entry, 'dir': -1, 'ts': df2.index[i],
                                         'size': lot, 'sl_pts': sl_pts, 'tp_pts': tp_pts}
                             resistance_taps = 0
                             if verbose:
@@ -224,7 +227,7 @@ class GoldMasterBacktester:
                               row['momentum_roc'] > p.momentum_thresh):
                         if mb_th < 0.05 or meta >= -mb_th:
                             entry = price * (1 + self.slippage)
-                            open_pos = {'entry': entry, 'dir': 1,
+                            open_pos = {'entry': entry, 'dir': 1, 'ts': df2.index[i],
                                         'size': lot, 'sl_pts': sl_pts, 'tp_pts': tp_pts}
                             resistance_taps = 0
 
@@ -234,7 +237,7 @@ class GoldMasterBacktester:
                               row['momentum_roc'] < -p.momentum_thresh):
                         if mb_th < 0.05 or meta <= mb_th:
                             entry = price * (1 - self.slippage)
-                            open_pos = {'entry': entry, 'dir': -1,
+                            open_pos = {'entry': entry, 'dir': -1, 'ts': df2.index[i],
                                         'size': lot, 'sl_pts': sl_pts, 'tp_pts': tp_pts}
                             support_taps = 0
 
@@ -246,7 +249,10 @@ class GoldMasterBacktester:
                 moved = (fp - open_pos['entry']) * open_pos['dir']
                 pnl   = moved * open_pos['size'] * self.POINT_VALUE
                 balance += pnl
-                trades.append({'pnl': pnl, 'reason': 'EOD'})
+                trades.append({'pnl': pnl, 'reason': 'EOD',
+                               'dir': open_pos['dir'],
+                               'entry_ts': open_pos.get('ts'),
+                               'exit_ts': df2.index[-1]})
                 eq_curve[-1] = balance
 
             # ── Metrikler ─────────────────────────────────

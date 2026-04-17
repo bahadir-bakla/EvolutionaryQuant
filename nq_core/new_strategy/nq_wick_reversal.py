@@ -33,6 +33,8 @@ class NQ_Wick_Reversal_Strategy:
         self.daily_range_high = None
         self.daily_range_low = None
         self.range_established = False
+        self.last_date = None
+        self.range_bar_count = 0
         
     def add_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
         """Add required indicators for the strategy"""
@@ -78,24 +80,29 @@ class NQ_Wick_Reversal_Strategy:
         return start_time <= current_time < end_time
     
     def update_daily_range(self, df: pd.DataFrame, idx: int):
-        """Update the daily opening range based on first 15 minutes"""
-        if idx < self.config.range_duration_minutes:
-            # Still in the opening range period
-            if not self.range_established:
-                # Initialize range
-                period_data = df.iloc[:idx+1]
-                self.daily_range_high = period_data['high'].max()
-                self.daily_range_low = period_data['low'].min()
+        """Update the daily opening range based on first N minutes of each day"""
+        current_date = df.index[idx].date()
+        
+        # Reset for new day
+        if self.last_date != current_date:
+            self.daily_range_high = None
+            self.daily_range_low = None
+            self.range_established = False
+            self.range_bar_count = 0
+            self.last_date = current_date
+        
+        if not self.range_established:
+            if self.daily_range_high is None:
+                self.daily_range_high = df.iloc[idx]['high']
+                self.daily_range_low = df.iloc[idx]['low']
+                self.range_bar_count = 1
             else:
-                # Update range
                 self.daily_range_high = max(self.daily_range_high, df.iloc[idx]['high'])
                 self.daily_range_low = min(self.daily_range_low, df.iloc[idx]['low'])
-        elif idx == self.config.range_duration_minutes:
-            # Just finished establishing the range
-            period_data = df.iloc[:idx+1]
-            self.daily_range_high = period_data['high'].max()
-            self.daily_range_low = period_data['low'].min()
-            self.range_established = True
+                self.range_bar_count += 1
+            
+            if self.range_bar_count >= self.config.range_duration_minutes:
+                self.range_established = True
     
     def evaluate(self, df: pd.DataFrame, idx: int):
         """Evaluate strategy at given index"""

@@ -72,6 +72,40 @@ def _resample(df: pd.DataFrame, tf: str) -> pd.DataFrame:
     ).dropna(subset=['open','close'])
 
 
+def load_yfinance_nq(tf: str = '5m', lookback_days: int = 60) -> pd.DataFrame:
+    """Pull recent NQ Futures (NQ=F) data from yfinance."""
+    import yfinance as yf
+    print(f"📡 YFinance: NQ=F {tf} (son {lookback_days} gün) çekiliyor...")
+    
+    # NQ=F is the continuous futures contract
+    ticker = "NQ=F"
+    interval = '5m' if tf == '5m' else '15m' if tf == '15m' else '1h'
+    period   = f"{lookback_days}d" if lookback_days <= 60 else "max"
+    
+    try:
+        df = yf.download(ticker, period=period, interval=interval, progress=False)
+        if df.empty:
+            # Fallback to MNQ=F if NQ=F fails
+            print("⚠️ NQ=F çekilemedi. MNQ=F (Micro) deneniyor...")
+            df = yf.download("MNQ=F", period=period, interval=interval, progress=False)
+            
+        if df.empty: return pd.DataFrame()
+        
+        # yfinance sometimes returns MultiIndex columns
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = [c[0].lower() for c in df.columns]
+        else:
+            df.columns = [c.lower() for c in df.columns]
+            
+        if df.index.tz is not None:
+            # Futures are usually in UTC or Exchange time
+            df.index = df.index.tz_convert('America/New_York').tz_localize(None)
+        return df
+    except Exception as e:
+        print(f"⚠️ YFinance çekilemedi: {e}")
+        return pd.DataFrame()
+
+
 def load_data(data_arg: str = None, tf: str = '5m') -> pd.DataFrame:
     """
     Load NQ / QQQ data from various sources.
@@ -108,9 +142,13 @@ def load_data(data_arg: str = None, tf: str = '5m') -> pd.DataFrame:
             continue
 
     if df is None:
+        print("⚠️  Yerel cache bulunamadı. YFinance fallback...")
+        df = load_yfinance_nq(tf)
+
+    if df is None or df.empty:
         raise FileNotFoundError(
             "Hiçbir veri kaynağı bulunamadı! "
-            "--data ile bir pkl veya csv belirtin."
+            "--data ile bir pkl veya csv belirtin veya internet bağlantısını kontrol edin."
         )
 
     # Ensure volume column
@@ -125,6 +163,21 @@ def load_data(data_arg: str = None, tf: str = '5m') -> pd.DataFrame:
 
     print(f"📊 Final: {len(df):,} {tf} barları | "
           f"Fiyat aralığı: {df['close'].min():.2f} – {df['close'].max():.2f}")
+          
+    try:
+        sys.path.insert(0, os.path.join(_PARENT, 'spectral_bias_engine'))
+        from fft_bias import add_spectral_features
+        from hmm_regime import add_regime_features
+        from adaptive_meta_labeler import apply_adaptive_meta_labels
+        print("🎧 Spectral Regime özellikleri hesaplanıyor...", end=' ', flush=True)
+        df = add_spectral_features(df, window_size=60)
+        df = add_regime_features(df, lookback=500)
+        df = apply_adaptive_meta_labels(df)
+        print("OK!")
+    except Exception as e:
+        print(f"⚠️ Spectral eklenti yüklenemedi: {e}")
+        df['meta_bias'] = 0.0
+
     return df
 
 
@@ -193,18 +246,19 @@ def main():
     parser.add_argument('--data',    type=str,   default=None,  help='Veri dosyası (.pkl veya .csv)')
     parser.add_argument('--tf',      type=str,   default='5m',  help='Timeframe: 5m, 15m, 1h')
     parser.add_argument('--capital', type=float, default=1_000.0)
-    parser.add_argument('--pop',     type=int,   default=80,    help='Population size')
+    parser.add_argument('--pop',     type=int,   default=100,   help='Population size')
     parser.add_argument('--gen',     type=int,   default=200,   help='Generations')
-    parser.add_argument('--splits',  type=int,   default=5,     help='WF splits')
+    parser.add_argument('--splits',  type=int,   default=4,     help='WF splits')
     parser.add_argument('--jobs',    type=int,   default=None,  help='CPU cores')
     parser.add_argument('--quick',   action='store_true',       help='Hızlı test (pop=30, gen=20)')
     args = parser.parse_args()
 
     print("=" * 62)
-    print("  🧬  EvolutionaryQuant — NQ Alpha DEAP Optimizer")
     print("=" * 62)
-    print(f"  Strategy: 15-min ORB | Pivot | Momentum | FVG | OB")
-    print(f"            Kalman Filter | Hurst Exponent | VWAP | Gap")
+    print("  🧬  EvolutionaryQuant — NQ Spectral Scalper Optimizer")
+    print("=" * 62)
+    print(f"  Strategy: 15-min ORB | FVG | Institutional Order Blocks")
+    print(f"            VWAP Deviation | Spectral Bias Filter (HMM/FFT)")
     print(f"  Genome  : {GENOME_SIZE} parameters")
     print("=" * 62)
 
@@ -257,11 +311,11 @@ def main():
     for i, ind in enumerate(list(hof)[:5]):
         p = decode_genome(list(ind))
         print(f"  #{i+1}  Fit:{ind.fitness.values[0]:7.3f} | "
-              f"ORB={p.orb_breakout_mult:.2f}x | "
-              f"MinScore={p.min_score} | "
+              f"Sweep={p.sweep_sensitivity:.3f} | "
+              f"Displace={p.displacement_mult:.2f}x | "
               f"TP={p.tp_atr_mult:.1f}x | "
               f"SL={p.sl_atr_mult:.1f}x | "
-              f"Hurst={p.hurst_window}")
+              f"FVG={p.fvg_min_size:.2f}x")
 
     print("\n✅ Her şey tamamlandı!")
 

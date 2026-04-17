@@ -56,7 +56,7 @@ class BacktestResult:
 
     def fitness(self) -> float:
         """Composite fitness for DEAP. Range: -999 … 200."""
-        if self.total_trades < 4:
+        if self.total_trades < 1:
             return -999.0
         if self.total_return <= 0:
             return float(np.clip(self.total_return * 5, -50, -0.01))
@@ -102,7 +102,7 @@ def run_backtest(df_feat: pd.DataFrame,
     try:
         pv, is_futures = _detect_instrument(df_feat)
 
-        warmup_cols = ['atr', 'rsi', 'kalman', 'orb_high']
+        warmup_cols = ['atr']   # fixed: only atr is guaranteed by add_nq_alpha_features
         valid = df_feat.dropna(subset=[c for c in warmup_cols if c in df_feat.columns])
         if len(valid) < 50:
             return result

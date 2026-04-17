@@ -141,40 +141,30 @@ class RegimeDetector:
             'confidence': conf
         }
 
-def add_regime_features(df: pd.DataFrame, lookback: int = 1500) -> pd.DataFrame:
+def add_regime_features(df: pd.DataFrame, lookback: int = 1500, step: int = 10) -> pd.DataFrame:
     """
     Pandas convenience function. Batch labels a historical DataFrame.
-    Retrains on expanding window (slow) or rolling (very slow).
-    For speed, we'll train once on the FIRST `lookback` portion and 
-    update the model periodically (e.g., every 500 bars).
+    Optimized: Fits/Predicts every `step` bars and forward fills.
     """
     df = df.copy()
     detector = RegimeDetector(n_regimes=3, lookback=lookback)
     
-    state_labels = []
-    state_confs  = []
+    state_labels = np.array([None] * len(df), dtype=object)
+    state_confs  = np.full(len(df), np.nan)
     
-    # Needs at least 50 bars to start
-    # We will do a staggered block update for speed 
     update_frequency = 500
     
-    for i in range(len(df)):
-        if i < 50:
-            state_labels.append('ranging')
-            state_confs.append(0.0)
-            continue
-            
+    for i in range(50, len(df), step):
         # Retrain every `update_frequency` bars
-        if i == 50 or (i % update_frequency == 0):
-            # Train using data up to `i`
+        if i == 50 or (i % update_frequency < step):
             train_window = df.iloc[max(0, i-lookback):i]
             detector.fit(train_window)
             
         res = detector.predict_current_state(df.iloc[max(0, i-10):i+1])
-        state_labels.append(res['label'])
-        state_confs.append(res['confidence'])
+        state_labels[i] = res['label']
+        state_confs[i]  = res['confidence']
         
-    df['hmm_regime'] = state_labels
-    df['hmm_confidence'] = state_confs
+    df['hmm_regime']     = pd.Series(state_labels).ffill().fillna('ranging').values
+    df['hmm_confidence'] = pd.Series(state_confs).ffill().fillna(0.0).values
     
     return df

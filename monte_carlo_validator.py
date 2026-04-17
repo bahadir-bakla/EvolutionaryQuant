@@ -121,6 +121,52 @@ try:
 except Exception as e:
     print(f"\n  GoldSniper HATA: {e}")
 
+# ── SilverMomentum features (ONCE hesapla) ────────────────────────
+df_sm_feat = None
+sm_params  = None
+try:
+    sys.path.insert(0, os.path.join(ROOT, 'silver_momentum_deap'))
+    from data_loader import load_histdata_folder, resample_to_tf
+    from silver_strategy import add_silver_features, SilverMomentumParams
+    from backtest_engine import run_backtest
+
+    sm_out = os.path.join(ROOT, 'silver_momentum_deap', 'outputs')
+    sm_best = None
+    if os.path.exists(sm_out):
+        files = sorted([f for f in os.listdir(sm_out) 
+                        if f.startswith('silver_momentum_') and f.endswith('.json')], reverse=True)
+        if files:
+            with open(os.path.join(sm_out, files[0])) as f:
+                d = json.load(f)
+            sm_best = d
+            print(f"  SilverMomentum: {files[0]} fitness={d.get('fitness', 0):.4f}")
+
+    if sm_best and 'best_params' in sm_best:
+        sm_params = SilverMomentumParams(**sm_best['best_params'])
+    else:
+        sm_params = SilverMomentumParams()
+
+    print("  Silver data yukleniyor & resampling (15m)...", end=' ', flush=True)
+    df_xag_m1 = load_histdata_folder(os.path.join(ROOT, 'XAG_DATA'))
+    df_xag_15m = resample_to_tf(df_xag_m1, '15min')
+    
+    # Spectral Injection
+    try:
+        from spectral_bias_engine.fft_bias import add_spectral_features
+        from spectral_bias_engine.hmm_regime import add_regime_features
+        from spectral_bias_engine.adaptive_meta_labeler import apply_adaptive_meta_labels
+        df_xag_15m = add_spectral_features(df_xag_15m, window_size=60)
+        df_xag_15m = add_regime_features(df_xag_15m, lookback=500)
+        df_xag_15m = apply_adaptive_meta_labels(df_xag_15m)
+    except Exception:
+        df_xag_15m['meta_bias'] = 0.0
+
+    print("  SilverMomentum feature engineering...", end=' ', flush=True)
+    df_sm_feat = add_silver_features(df_xag_15m, sm_params)
+    print(f"OK ({len(df_sm_feat.columns)} kolon)")
+except Exception as e:
+    print(f"\n  SilverMomentum HATA: {e}")
+
 # ─────────────────────────────────────────────────────────────────
 # HIZLI BACKTEST FONKSIYONLARI (feature engineering yok!)
 # ─────────────────────────────────────────────────────────────────
@@ -288,6 +334,7 @@ feat_dfs = {}
 if df_gm:          feat_dfs['GoldMaster']    = df_raw
 if df_le_feat is not None: feat_dfs['LiquidityEdge'] = df_le_feat
 if df_gs_feat is not None: feat_dfs['GoldSniper']    = df_gs_feat
+if df_sm_feat is not None: feat_dfs['SilverMomentum']= df_sm_feat
 
 ref_df   = df_raw
 start_ts = ref_df.index[0]
@@ -334,6 +381,19 @@ for sim_i in range(N_SIMS):
         if len(sl) >= 200:
             try:
                 mc_results['GoldSniper'].append(bt_gs_fast(sl, CAPITAL))
+            except Exception: pass
+
+    # SilverMomentum
+    if df_sm_feat is not None:
+        sl = df_sm_feat.loc[ws:we]
+        if len(sl) >= 200:
+            try:
+                r = run_backtest(sl, sm_params, CAPITAL)
+                mc_results['SilverMomentum'].append({
+                    'cagr': r.cagr, 'total_return': r.total_return,
+                    'max_drawdown': r.max_drawdown, 'profit_factor': r.profit_factor,
+                    'total_trades': r.total_trades
+                })
             except Exception: pass
 
     if (sim_i + 1) % 100 == 0 or sim_i == 0:

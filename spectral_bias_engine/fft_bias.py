@@ -144,31 +144,29 @@ class SpectralCyclePredictor:
             'cycle_value_forecast': c_next
         }
 
-def add_spectral_features(df: pd.DataFrame, window_size: int = 120, col_name: str = 'close') -> pd.DataFrame:
+def add_spectral_features(df: pd.DataFrame, window_size: int = 120, col_name: str = 'close', step: int = 10) -> pd.DataFrame:
     """
     Pandas convenience function. 
-    Warning: Generating rolling FFT over huge DataFrames is O(N * W log W) and can be slow.
-    Best to run it dynamically bar-by-bar in live mode, or batched.
+    Optimized: Calculates every `step` bars and forward fills.
     """
     df = df.copy()
     predictor = SpectralCyclePredictor(window_size=window_size)
     
-    bias_dir = np.zeros(len(df))
-    bias_str = np.zeros(len(df))
-    periods  = np.zeros(len(df))
+    bias_dir = np.full(len(df), np.nan)
+    bias_str = np.full(len(df), np.nan)
+    periods  = np.full(len(df), np.nan)
     
-    # Needs optimization in production, using rolling window loop for now
     prices = df[col_name].values
-    for i in range(window_size, len(prices)):
+    for i in range(window_size, len(prices), step):
         windowed = prices[i-window_size:i]
         res = predictor.predict(windowed)
         bias_dir[i] = res['bias_direction']
         bias_str[i] = res['bias_strength']
         if res['dominant_periods']:
-            periods[i]  = res['dominant_periods'][0] # top period
+            periods[i]  = res['dominant_periods'][0]
             
-    df['spectral_bias'] = bias_dir
-    df['spectral_strength'] = bias_str
-    df['dominant_cycle'] = periods
+    df['spectral_bias']     = pd.Series(bias_dir).ffill().fillna(0.0).values
+    df['spectral_strength'] = pd.Series(bias_str).ffill().fillna(0.0).values
+    df['dominant_cycle']    = pd.Series(periods).ffill().fillna(0.0).values
     
     return df

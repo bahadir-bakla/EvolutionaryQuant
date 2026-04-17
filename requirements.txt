@@ -1,24 +1,31 @@
-# NQ Quant Trading Bot
-# Dependencies
+# XAU/USD DEAP Optimizer Suite — Dependencies
 
-# Core
+# Core numerical
 numpy>=1.21.0
 pandas>=1.3.0
 scipy>=1.7.0
 
-# Kalman Filter
-filterpy>=1.4.5
+# Genetic algorithm
+deap>=1.3.1
 
-# Data
-openbb>=4.0.0
+# Machine learning (for LiquidityEdge XGBoost filter)
+xgboost>=1.7.0
+scikit-learn>=1.3.0
+
+# Visualization (optional, for equity curve plots)
+matplotlib>=3.5.0
+
+# Market data (optional, for fetching NQ/SI)
 yfinance>=0.2.0
 
-# Visualization
-matplotlib>=3.4.0
-seaborn>=0.11.0
+# Kalman filter (used in some strategies)
+filterpy>=1.4.5
 
-# Technical Analysis (backup if OpenBB fails)
-pandas-ta>=0.3.14b
+# Parallel processing (built-in, but explicit)
+# joblib>=1.2.0
 
-# Testing
-pytest>=7.0.0
+# Optional: live trading via MetaTrader 5
+# MetaTrader5>=5.0.45
+
+# Optional: alternative data source
+# ccxt>=4.0.0
