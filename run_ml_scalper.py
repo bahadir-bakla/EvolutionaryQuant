@@ -38,15 +38,19 @@ def main():
     parser.add_argument('--skip_train', action='store_true',            help='Load saved models')
     parser.add_argument('--long_only',  action='store_true',            help='Long only mode')
     parser.add_argument('--short_only', action='store_true',            help='Short only mode')
-    parser.add_argument('--oos_years',  type=int, nargs='+', default=None, help='OOS years e.g. --oos_years 2025')
-    parser.add_argument('--train_years',type=int, nargs='+', default=None, help='Train years override')
+    parser.add_argument('--oos_years',   type=int,   nargs='+', default=None, help='OOS years e.g. --oos_years 2025')
+    parser.add_argument('--train_years', type=int,   nargs='+', default=None, help='Train years override')
+    parser.add_argument('--kelly',          type=float, default=0.0,  help='Kelly fraction (0=fixed lot, 0.25=quarter-Kelly)')
+    parser.add_argument('--kelly_max',      type=float, default=1.0,  help='Kelly hard max lot cap (default 1.0)')
+    parser.add_argument('--kelly_max_risk', type=float, default=1.0,  help='Max %% equity risked per trade (default 1.0%%)')
     args = parser.parse_args()
 
     print("=" * 60)
     print("  ML Gold Scalper v2 — Bidirectional")
     print("=" * 60)
     print(f"  TP={args.tp}  SL={args.sl}  MaxBars={args.max_bars}")
-    print(f"  Threshold={args.threshold}  Lot={args.lot}")
+    kelly_str = f"  Kelly={args.kelly} (max_lot={args.kelly_max}, max_risk={args.kelly_max_risk}%)" if args.kelly > 0 else ""
+    print(f"  Threshold={args.threshold}  Lot={args.lot}{kelly_str}")
     mode = "LONG+SHORT"
     if args.long_only:  mode = "LONG only"
     if args.short_only: mode = "SHORT only"
@@ -86,7 +90,7 @@ def main():
         short_bundle = None
 
     # -- OOS Backtest -----------------------------------------------------
-    print("\n[BACKTEST] OOS 2023-2024...")
+    print(f"\n[BACKTEST] {label}...")
     params = MLScalperParams(
         tp_pts         = args.tp,
         sl_pts         = args.sl,
@@ -95,6 +99,9 @@ def main():
         max_hold_bars  = args.max_bars,
         threshold      = args.threshold,
         session_filter = not args.no_session,
+        kelly_fraction     = args.kelly,
+        kelly_max_lot      = args.kelly_max,
+        kelly_max_risk_pct = args.kelly_max_risk,
     )
     result = backtest_ml(m1_oos, long_bundle, short_bundle, params, initial_capital=1_000.0)
 

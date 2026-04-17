@@ -37,14 +37,47 @@ GOLD_PV = 100.0
 
 @dataclass
 class MLScalperParams:
-    tp_pts:         float = 6.0
-    sl_pts:         float = 3.0
-    spread_pts:     float = 0.4
-    lot_base:       float = 0.01
-    max_hold_bars:  int   = 120
-    threshold:      float = 0.70
-    session_filter: bool  = True
-    conflict_skip:  bool  = False  # if True skip bar when both long+short fire
+    tp_pts:            float = 6.0
+    sl_pts:            float = 3.0
+    spread_pts:        float = 0.4
+    lot_base:          float = 0.01
+    max_hold_bars:     int   = 120
+    threshold:         float = 0.70
+    session_filter:    bool  = True
+    conflict_skip:     bool  = False   # if True skip bar when both long+short fire
+    kelly_fraction:    float = 0.0    # 0=disabled, 0.25=quarter-Kelly, 0.5=half-Kelly
+    kelly_max_lot:     float = 1.0    # hard cap on lot size
+    kelly_max_risk_pct: float = 1.0   # max % of equity risked per trade (controls DD)
+
+
+def kelly_lot(equity: float, win_prob: float, tp_pts: float, sl_pts: float,
+              fraction: float = 0.25, max_lot: float = 1.0,
+              max_risk_pct: float = 1.0) -> float:
+    """
+    Kelly criterion lot sizing with equity-proportional risk cap.
+
+    Two safety limits applied (whichever is smaller):
+      1. kelly_max_lot      — hard lot cap (e.g. 0.5 lots)
+      2. kelly_max_risk_pct — max % of equity per trade (keeps DD % stable)
+         lot_cap = equity * max_risk_pct/100 / (sl_pts * GOLD_PV)
+
+    This ensures drawdown % stays bounded regardless of equity size.
+    """
+    b = tp_pts / sl_pts
+    q = 1.0 - win_prob
+    full_kelly = (win_prob * b - q) / b
+    if full_kelly <= 0:
+        return 0.01   # no edge — minimum lot
+
+    target_risk = equity * full_kelly * fraction          # $ risk this trade (Kelly)
+    lot_kelly   = target_risk / (sl_pts * GOLD_PV)
+
+    # Equity-proportional cap: never risk more than max_risk_pct% of equity
+    lot_pct_cap = (equity * max_risk_pct / 100.0) / (sl_pts * GOLD_PV)
+
+    lot = min(lot_kelly, lot_pct_cap, max_lot)
+    lot = max(0.01, round(lot, 2))
+    return lot
 
 
 # -----------------------------------------------------------------------------
@@ -207,22 +240,32 @@ def backtest_ml(
                     want_long = False
 
             if want_long:
-                entry = o_arr[i] + params.spread_pts
+                entry    = o_arr[i] + params.spread_pts
+                win_prob = float(lp[i - 1])
+                lot = (kelly_lot(equity, win_prob, params.tp_pts, params.sl_pts,
+                                 params.kelly_fraction, params.kelly_max_lot,
+                                 params.kelly_max_risk_pct)
+                       if params.kelly_fraction > 0 else params.lot_base)
                 open_pos = {
                     'dir': 1, 'entry': entry,
                     'tp':  entry + params.tp_pts,
                     'sl':  entry - params.sl_pts,
-                    'lot': params.lot_base, 'ts': idx[i],
-                    'bar_i': i, 'proba': float(lp[i - 1]),
+                    'lot': lot, 'ts': idx[i],
+                    'bar_i': i, 'proba': win_prob,
                 }
             elif want_short:
-                entry = o_arr[i] - params.spread_pts
+                entry    = o_arr[i] - params.spread_pts
+                win_prob = float(sp[i - 1])
+                lot = (kelly_lot(equity, win_prob, params.tp_pts, params.sl_pts,
+                                 params.kelly_fraction, params.kelly_max_lot,
+                                 params.kelly_max_risk_pct)
+                       if params.kelly_fraction > 0 else params.lot_base)
                 open_pos = {
                     'dir': -1, 'entry': entry,
                     'tp':  entry - params.tp_pts,
                     'sl':  entry + params.sl_pts,
-                    'lot': params.lot_base, 'ts': idx[i],
-                    'bar_i': i, 'proba': float(sp[i - 1]),
+                    'lot': lot, 'ts': idx[i],
+                    'bar_i': i, 'proba': win_prob,
                 }
 
     # Close at end

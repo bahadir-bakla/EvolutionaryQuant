@@ -120,7 +120,7 @@ def _walk_forward_folds(
     train_months: int = TRAIN_MONTHS,
     test_months: int = TEST_MONTHS,
 ) -> list[tuple[pd.Timestamp, pd.Timestamp, pd.Timestamp, pd.Timestamp]]:
-    """Generate (train_start, train_end, test_start, test_end) tuples."""
+    """Generate (train_start, train_end, test_start, test_end) tuples (rolling window)."""
     start = index.min()
     end   = index.max()
     folds = []
@@ -133,6 +133,36 @@ def _walk_forward_folds(
             break
         folds.append((fold_start, train_end, train_end, test_end))
         fold_start = fold_start + pd.DateOffset(months=test_months)
+
+    return folds
+
+
+def _expanding_window_folds(
+    index: pd.DatetimeIndex,
+    initial_train_months: int = 12,
+    test_months: int = 12,
+) -> list[tuple[pd.Timestamp, pd.Timestamp, pd.Timestamp, pd.Timestamp]]:
+    """
+    Expanding (N-1) walk-forward: training window always starts from the
+    beginning and grows by test_months each fold.
+
+    e.g. initial_train=12m, test=12m:
+      Fold 1: train 2011,       test 2012
+      Fold 2: train 2011-2012,  test 2013
+      Fold 3: train 2011-2013,  test 2014
+      ...
+    """
+    start = index.min()
+    end   = index.max()
+    folds = []
+
+    train_end = start + pd.DateOffset(months=initial_train_months)
+    while True:
+        test_end = train_end + pd.DateOffset(months=test_months)
+        if test_end > end:
+            break
+        folds.append((start, train_end, train_end, test_end))
+        train_end = train_end + pd.DateOffset(months=test_months)
 
     return folds
 
