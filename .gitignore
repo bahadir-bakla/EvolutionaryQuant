@@ -13,6 +13,7 @@
 !DAT_MT_*_2024.csv
 !XAG_DATA/*.csv
 *.pkl
+!ml_engine/models/*.pkl
 *.pickle
 *.feather
 *.parquet
@@ -43,6 +44,8 @@ mt5_live.log
 *.model
 *.h5
 models/
+!ml_engine/models/
+!ml_engine/models/*.pkl
 
 # ── IDE & OS ─────────────────────────────────────────────────
 .vscode/
