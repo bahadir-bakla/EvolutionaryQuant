@@ -780,6 +780,7 @@ def run_live(args: argparse.Namespace) -> None:
 # ─── CLI ─────────────────────────────────────────────────────────────────────
 
 def main() -> None:
+    global NQ_SYMBOL
     p = argparse.ArgumentParser(description='Algo Director — Gold Scalper + NQ Liquidity')
     p.add_argument('--paper',            action='store_true', help='Paper trading — no real orders')
     p.add_argument('--disable-nq',       action='store_true', help='Disable NQ Liquidity strategy')
@@ -788,7 +789,6 @@ def main() -> None:
     args = p.parse_args()
 
     # Allow broker-specific NQ symbol override
-    global NQ_SYMBOL
     NQ_SYMBOL = args.nq_symbol
 
     run_live(args)
