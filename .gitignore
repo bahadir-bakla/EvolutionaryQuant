@@ -60,6 +60,7 @@ desktop.ini
 venv/
 .env
 .env.*
+!.env.example
 *.env
 
 # ── Jupyter ─────────────────────────────────────────────────
