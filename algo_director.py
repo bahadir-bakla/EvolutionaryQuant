@@ -46,6 +46,10 @@ from alpha_engine.gold_scalper_bt import (
     _in_killzone,
     GOLD_PV,
 )
+from alpha_engine.gold_sniper_bt import (
+    GoldSniperParams,
+    _add_features as sniper_add_features,
+)
 from alpha_engine.nq_liquidity_bt import NQLiquidityParams, NQ_PV_FULL, NQ_PV_MICRO
 from mt5_bridge.connector import MT5Connector
 from mt5_bridge.order_manager import MT5OrderManager
@@ -77,7 +81,8 @@ logging.basicConfig(
 log = logging.getLogger('algo_director')
 
 # ─── Constants ───────────────────────────────────────────────────────────────
-MAGIC        = 20260419          # Algo Core — distinct from ML Scalper (20260418)
+MAGIC        = 20260419          # Gold Scalper — distinct from ML Scalper (20260418)
+MAGIC_SNIPER = 20260420          # Gold Sniper — separate position tracking
 GOLD_SYMBOL  = 'XAUUSD'
 NQ_SYMBOL    = 'NAS100'          # Adjust to your broker (NAS100, USTECH100, NQ100)
 WARMUP_BARS  = 500
@@ -107,6 +112,16 @@ def _make_gold_params() -> GoldScalperParams:
     raw = _load_best_params('gold_scalper')
     p = GoldScalperParams()
     INT_FIELDS = {'ob_lookback', 'trend_bars', 'momentum_bars', 'macro_ma_days'}
+    for k, v in raw.items():
+        if hasattr(p, k):
+            setattr(p, k, int(round(float(v))) if k in INT_FIELDS else float(v))
+    return p
+
+
+def _make_sniper_params() -> GoldSniperParams:
+    raw = _load_best_params('gold_sniper')
+    p = GoldSniperParams()
+    INT_FIELDS = {'max_bullets'}
     for k, v in raw.items():
         if hasattr(p, k):
             setattr(p, k, int(round(float(v))) if k in INT_FIELDS else float(v))
@@ -224,6 +239,7 @@ def _trigger_mirofish(gold_m1: pd.DataFrame, headlines: list) -> None:
 class StrategyState:
     name:           str
     symbol:         str
+    magic:          int   = MAGIC
     equity:         float = 10_000.0
     open_ticket:    Optional[int] = None
     open_dir:       Optional[str] = None
@@ -394,6 +410,42 @@ def nq_liquidity_signal(
     return None
 
 
+def gold_sniper_signal(h1: pd.DataFrame, params: GoldSniperParams) -> Optional[str]:
+    """Gold Sniper signal on 1H bars. Returns 'LONG', 'SHORT', or None."""
+    try:
+        if len(h1) < 50:
+            return None
+        df = sniper_add_features(h1, params)
+        row  = df.iloc[-2]
+        hour = df.index[-2].hour
+
+        # London + NY only (7-16 UTC)
+        if not (7 <= hour < 16):
+            return None
+
+        need_sweep = params.sweep_required >= 0.5
+        meta = float(row.get('meta_bias', 0.0))
+        if abs(meta) >= params.meta_bias_thresh:
+            return None
+
+        if (bool(row.get('daily_bias_bullish')) and
+                bool(row.get('h4_reject_down')) and meta >= 0):
+            if bool(row.get('sweep_minor_low')) or \
+               (bool(row.get('ob_tap_bullish')) and not need_sweep):
+                return 'LONG'
+
+        if (bool(row.get('daily_bias_bearish')) and
+                bool(row.get('h4_reject_up')) and meta <= 0):
+            if bool(row.get('sweep_minor_high')) or \
+               (bool(row.get('ob_tap_bearish')) and not need_sweep):
+                return 'SHORT'
+
+    except Exception as e:
+        log.warning(f"gold_sniper_signal error: {e}")
+
+    return None
+
+
 # ─── Position Helpers ─────────────────────────────────────────────────────────
 
 def sync_equity(state: StrategyState, paper: bool) -> None:
@@ -427,7 +479,7 @@ def check_position(
 
     try:
         positions = order_mgr.get_positions(symbol=state.symbol)
-        tickets   = {p['ticket'] for p in positions if p.get('magic') == MAGIC}
+        tickets   = {p['ticket'] for p in positions if p.get('magic') == state.magic}
     except Exception:
         return True
 
@@ -519,7 +571,7 @@ def open_trade(
         volume=lot,
         stop_loss=sl,
         take_profit=tp,
-        magic=MAGIC,
+        magic=state.magic,
     )
 
     if ticket:
@@ -633,13 +685,17 @@ def run_live(args: argparse.Namespace) -> None:
     log.info(f"  NQ enabled  : {not args.disable_nq}")
     log.info(f"  MiroFish    : {not args.disable_mirofish and MIROFISH_OK}")
 
-    gold_params = _make_gold_params()
-    nq_params   = _make_nq_params()
+    gold_params   = _make_gold_params()
+    sniper_params = _make_sniper_params()
+    nq_params     = _make_nq_params()
 
-    log.info(f"  Gold  params: session={gold_params.session:.2f}  "
+    log.info(f"  Gold Scalper: session={gold_params.session:.2f}  "
              f"tp={gold_params.tp_pts:.1f}  sl={gold_params.sl_pts:.1f}  "
              f"lot_base={gold_params.lot_base:.4f}")
-    log.info(f"  NQ    params: sweep_ext={nq_params.sweep_extension_atr:.3f}  "
+    log.info(f"  Gold Sniper : target_atr={sniper_params.target_atr_mult:.2f}  "
+             f"stop_atr={sniper_params.stop_atr_mult:.2f}  "
+             f"lot_base={sniper_params.lot_base:.4f}")
+    log.info(f"  NQ Liquidity: sweep_ext={nq_params.sweep_extension_atr:.3f}  "
              f"sl={nq_params.stop_loss_atr:.3f}  tp={nq_params.take_profit_atr:.3f}")
     log.info("")
 
@@ -652,8 +708,9 @@ def run_live(args: argparse.Namespace) -> None:
             return
         log.info("MT5 connected")
 
-    gold_state = StrategyState(name='gold_scalper', symbol=GOLD_SYMBOL)
-    nq_state   = StrategyState(name='nq_liquidity',  symbol=NQ_SYMBOL)
+    gold_state   = StrategyState(name='gold_scalper', symbol=GOLD_SYMBOL)
+    sniper_state = StrategyState(name='gold_sniper',  symbol=GOLD_SYMBOL, magic=MAGIC_SNIPER)
+    nq_state     = StrategyState(name='nq_liquidity', symbol=NQ_SYMBOL)
 
     use_nq       = not args.disable_nq
     use_mirofish = not args.disable_mirofish
@@ -727,6 +784,46 @@ def run_live(args: argparse.Namespace) -> None:
 
                 save_state(gold_state, nq_state, gold_params, nq_params,
                            'paper' if args.paper else 'live')
+
+            # ── Gold Sniper (1H) ──────────────────────────────────────────────
+            gold_h1 = connector.fetch_data(GOLD_SYMBOL, '1h', bars=120)
+            if not gold_h1.empty and len(gold_h1) >= 50:
+                gold_h1.columns = gold_h1.columns.str.lower()
+                sniper_state.equity = gold_state.equity
+
+                sniper_latest = gold_h1.index[-2]
+                if sniper_latest != sniper_state.last_bar_time:
+                    sniper_state.last_bar_time = sniper_latest
+
+                    if sniper_state.open_ticket is not None:
+                        check_position(order_mgr, sniper_state, GOLD_PV, args.paper)
+
+                    if sniper_state.open_ticket is None:
+                        direction = gold_sniper_signal(gold_h1, sniper_params)
+
+                        if direction and use_mirofish and abs(_sentiment.score) > 0.4:
+                            mf_action = _sentiment.action
+                            if (direction == 'LONG'  and mf_action == 'SHORT') or \
+                               (direction == 'SHORT' and mf_action == 'LONG'):
+                                log.info(f"[gold_sniper] {direction} vetoed by MiroFish")
+                                direction = None
+
+                        if direction:
+                            atr = float(pd.concat([
+                                gold_h1['high'] - gold_h1['low'],
+                                (gold_h1['high'] - gold_h1['close'].shift(1)).abs(),
+                                (gold_h1['low']  - gold_h1['close'].shift(1)).abs(),
+                            ], axis=1).max(axis=1).rolling(14).mean().iloc[-2])
+                            tp_pts = atr * sniper_params.target_atr_mult
+                            sl_pts = atr * sniper_params.stop_atr_mult
+                            lot = max(0.01, round(
+                                sniper_state.equity / 1000.0 * sniper_params.lot_base, 2))
+                            open_trade(
+                                order_mgr, sniper_state, direction,
+                                tp_pts, sl_pts, lot,
+                                'SNIPE', GOLD_PV, args.paper,
+                                current_price=float(gold_h1['close'].iloc[-2]),
+                            )
 
             # ── NQ Liquidity ─────────────────────────────────────────────────
             if use_nq:
