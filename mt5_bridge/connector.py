@@ -2,12 +2,20 @@
 # Handles connection to MetaTrader 5 Terminal and Data Fetching
 # Requirements: pip install MetaTrader5
 
+import os
 import MetaTrader5 as mt5
 import pandas as pd
 import sys
 import logging
 from datetime import datetime
+from pathlib import Path
 import pytz
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).parent.parent / '.env')
+except ImportError:
+    pass
 
 # Setup basic logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -19,15 +27,17 @@ class MT5Connector:
     """
     def __init__(self):
         self.connected = False
-        
+
     def connect(self, login: int = None, password: str = None, server: str = None):
-        """Initialize connection to MT5 terminal"""
-        # Try to initialize with credentials if provided
+        """Initialize connection to MT5 terminal, falling back to .env credentials"""
+        login    = login    or (int(os.getenv('MT5_LOGIN', 0)) or None)
+        password = password or os.getenv('MT5_PASSWORD')
+        server   = server   or os.getenv('MT5_SERVER')
+
         if login and password and server:
             logger.info(f"Connecting to {server} with account {login}...")
             authorized = mt5.initialize(login=login, password=password, server=server)
         else:
-            # Try to connect to existing open terminal
             logger.info("Connecting to open terminal...")
             authorized = mt5.initialize()
             
