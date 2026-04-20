@@ -197,7 +197,7 @@ async def api_sentiment():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--host', default='0.0.0.0')
-    parser.add_argument('--port', type=int, default=8080)
+    parser.add_argument('--port', type=int, default=8081)
     args = parser.parse_args()
     print(f"Dashboard -> http://{args.host}:{args.port}")
     uvicorn.run(app, host=args.host, port=args.port, log_level='warning')
