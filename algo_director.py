@@ -180,6 +180,9 @@ def _mirofish_worker(headlines: list, market_ctx: dict) -> None:
         log.info(f"MiroFish: score={result.score:.3f} action={result.action}")
     except Exception as e:
         log.warning(f"MiroFish worker error: {e}")
+        # Hata durumunda timestamp'i güncelle — 4 saat retry olmaz (rate limit koruması)
+        d = _sentiment.to_dict()
+        _sentiment.update(d['score'], d['action'], d.get('summary', ''))
 
 
 def _trigger_mirofish(gold_m1: pd.DataFrame, headlines: list) -> None:
